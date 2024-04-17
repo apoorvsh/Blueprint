@@ -1,0 +1,84 @@
+{
+  "kind": "template",
+  "properties": {
+    "dependsOn": ["key_vault", "data_factory", "synapse"],
+    "template": {
+      "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "projectCode": {
+          "type": "string",
+          "metadata": {
+            "description": "Project Code"
+          }
+        },
+        "environment": {
+          "type": "string",
+          "metadata": {
+            "description": "Environment of Project"
+          }
+        },
+        "adfObjectId": {
+          "type": "string",
+          "metadata": {
+            "discription": "Referencing Azure Data Factory Object ID"
+          }
+        },
+        "synapseObjectId": {
+          "type": "string",
+          "metadata": {
+            "discription": "Referencing Azure Synapse Workspace Object ID"
+          }
+        }
+      },
+      "variables": {
+        "keyVaultName": "[toLower(concat('akv',parameters('projectCode'),parameters('environment'),'secret01a1'))]",
+        "permisssions": ["get", "list"]
+      },
+
+      "resources": [
+        {
+          "type": "Microsoft.KeyVault/vaults/accessPolicies",
+          "apiVersion": "2022-07-01",
+          "name": "[concat(variables('keyVaultName'),'/add')]",
+          "properties": {
+            "accessPolicies": [
+              {
+                "tenantId": "[subscription().tenantId]",
+                "objectId": "[parameters('adfObjectId')]",
+                "permissions": {
+                  "secrets": "[variables('permisssions')]"
+                }
+              },
+              {
+                "tenantId": "[subscription().tenantId]",
+                "objectId": "[parameters('synapseObjectId')]",
+                "permissions": {
+                  "secrets": "[variables('permisssions')]"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "resourceGroup": "dataPlatform_Rg",
+    "displayName": "Adding Access Policies under key vault",
+    "parameters": {
+      "projectCode": {
+        "value": "[parameters('projectCode_assign')]"
+      },
+      "environment": {
+        "value": "[parameters('environment_assign')]"
+      },
+      "adfObjectId": {
+        "value": "[artifacts('data_factory').outputs.adfObjectID]"
+      },
+      "synapseObjectId": {
+        "value": "[artifacts('synapse').outputs.syanapseObjectID]"
+      }
+    }
+  },
+  "type": "Microsoft.Blueprint/blueprints/artifacts",
+  "name": "key_vault_access_policies"
+}

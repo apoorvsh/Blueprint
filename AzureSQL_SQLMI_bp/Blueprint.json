@@ -1,0 +1,201 @@
+{
+  "properties": {
+    "type": "Microsoft.Blueprint/blueprints",
+    "displayName": "Security First - Azure Synapse Analytics Environment",
+    "description": "Configures a Azure analytics environment with best practice security configurations",
+    "targetScope": "subscription",
+    "parameters": {
+      "emailAddresses": {
+        "type": "array",
+        "metadata": {
+          "displayName": "Required: SQL Advanced Threat Email Notifications",
+          "description": "Required SQL Notifications for Advanced Threat Detection"
+        }
+      },
+      "vaStorageRGName": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: SQL Advanced Security Storage Account resource Group Name",
+          "description": "Required for Advanced Threat Detection"
+        },
+        "defaultValue": "n/a"
+      },
+      "vaStorageName": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: SQL Advanced Security Storage Account Name",
+          "description": "Required for Advanced Threat Detection"
+        },
+        "defaultValue": "n/a"
+      },
+      "vaStorageEndpoint": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: SQL Advanced Security Storage Account Endpoint URI",
+          "description": "Required for Advanced Threat Detection"
+        },
+        "defaultValue": "n/a"
+      },
+      "sqlAdministratorLogin": {
+        "type": "secureString",
+        "metadata": {
+          "displayName": "Required: Local SQL Administrator Login",
+          "description": "Required if you're using storage for SQL backups - Otherwise default to N/A"
+        },
+        "defaultValue": "sqladmin"
+      },
+      "sqlAdministratorPassword": {
+        "type": "secureString",
+        "metadata": {
+          "displayName": "Required: SQL Admin Password",
+          "description": "Local password for SQL admin access"
+        },
+        "allowedValues": []
+      },
+      "sqlAAD_adminUser": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: AAD SQL Administrator Login Email",
+          "description": "Required for azure active directory administrators"
+        },
+        "defaultValue": "n/a"
+      },
+      "sqlAAD_adminSID": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: AAD SQL Administrator Login Object ID",
+          "description": "Required for azure active directory administrators"
+        },
+        "defaultValue": "n/a"
+      },
+      "centralizedLogAnalytics_workspaceId": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Optional: Centralized Log Analytics Workspace Id for auditing and diagnostics",
+          "description": "Specifies the Log Analytics Workspace Resource ID that should be used for auditing and diagnostics if you have selected a Centralized or Functional monitoring approach."
+        },
+        "defaultValue": "N/A",
+        "allowedValues": []
+      },
+      "decentralizedLogAnalytics_workspaceId": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Optional: Decentralized Log Analytics Workspace Id for auditing and diagnostics",
+          "description": "Specifies the Log Analytics Workspace Resource ID that should be used for auditing and diagnostics if you have selected a Centralized or Functional monitoring approach."
+        },
+        "defaultValue": "N/A",
+        "allowedValues": []
+      },
+      "deploymentEnvironment": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Deployment Environment for Resources",
+          "description": "Select your deployment environment. Production, QA & Development provide enhanced security and monitoring. Sanbox is meant for POC and short lived exploration only.  See the environment mapping to understand more details."
+        },
+        "defaultValue": "p",
+        "allowedValues": ["p", "d", "n", "s", "dr","q"]
+      },
+      "ExistingVNetSQLMISNName": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Existing virtual network delegated SQL MI subnet name",
+          "description": "If you are leveraging an existing Virtual Network provide the subnet name here"
+        },
+        "defaultValue": "hrcedlh-data-sn"
+      },
+      "ExistingVNetName": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Existing virtual network name",
+          "description": "If you are leveraging an existing Virtual Network provide the name here"
+        },
+        "defaultValue": "VNET-edw-shared-dev"
+      },
+      "ExistingVNetRGName": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Existing virtual network resource group name",
+          "description": "If you are leveraging an existing Virtual Network provide the Resource Group name here"
+        },
+        "defaultValue": "rg-edw-shared-dev"
+      },
+      "monitoringApproach": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Logging and Monitoring Approach",
+          "description": "Select your Organizational monitoring approach. For more info: https://docs.microsoft.com/en-us/azure/azure-monitor/platform/design-logs-deployment#important-considerations-for-an-access-control-strategy"
+        },
+        "defaultValue": "Decentralized",
+        "allowedValues": [
+          "Centralized",
+          "Decentralized",
+          "Functional",
+          "External"
+        ]
+      },
+      "monitorLogRetention": {
+        "type": "int",
+        "metadata": {
+          "displayName": "Required: Metrics & Log Retention (days)",
+          "description": "The retention is days for auditing, diagnostic and metric logs per your organizations requirements. Default = 180 days"
+        },
+        "defaultValue": 180,
+        "allowedValues": []
+      },
+      "resourceLocation": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: All Resource Location",
+          "description": "Location for all resources."
+        },
+        "defaultValue": "eastus",
+        "allowedValues": [
+          "centralus",
+          "eastus",
+          "eastus2",
+          "northcentralus",
+          "southcentralus",
+          "westcentralus",
+          "westus",
+          "westus2"
+        ]
+      },
+      "resourceNamePrefix": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Resource Name Prefix",
+          "description": "Resource group and resource name prefix. Lower case characters only and less than or equal to 8 characters"
+        },
+        "defaultValue": "ans",
+        "allowedValues": ["ans", "tio", "ino", "res", "ato", "eut","Syn","Blc"]
+      },
+      "resourceTags": {
+        "type": "object",
+        "metadata": {
+          "displayName": "Required: Resource Tags for all resources"
+        },
+        "defaultValue": {
+          "BU": "Information Technology",
+          "CostCenter": "000000-Default",
+          "Environment": "Development",
+          "Department": "Information Technology",
+          "Application": "Information Technology"
+        }
+      }
+    },
+    "resourceGroups": {
+      "SQLServicesRG": {
+        "location": "[parameters('resourceLocation')]",
+        "metadata": {
+          "displayName": "SQL Resource Group"
+        },
+        "tags": {
+          "ENV": "[parameters('resourceTags').ENV]",
+          "APP": "[parameters('resourceTags').APP]",
+          "Owner": "[parameters('resourceTags').Owner]"
+        },
+        "dependsOn": []
+      }
+    }
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "identity": {
+    "type": "UserAssigned",
+    "userAssignedIdentities": {
+      "/subscriptions/4ebd8350-9a7a-42f0-bc93-0eea92ca9757/resourcegroups/RG-US-SynIDShare01/providers/Microsoft.ManagedIdentity/userAssignedIdentities/ID-US-SynShare01": {}
+    }
+  },
+  "location": "southcentralus",
+  "properties": {
+    "blueprintId": "/subscriptions/4ebd8350-9a7a-42f0-bc93-0eea92ca9757/providers/Microsoft.Blueprint/blueprints/LN_SQLVMProductService_BP",
+    "resourceGroups": {
+      "DataPlatformServicesRG": {
+        "name": "dve2-clms-dataplatform-rg01"
+      }
+    },
+    "parameters": {
+      "updateSQLVMConfiguration": {
+        "value": true
+      },
+      "azureVM_adminPassword": {
+        "reference": {
+          "keyVault": {
+            "id": "/subscriptions/4ebd8350-9a7a-42f0-bc93-0eea92ca9757/resourceGroups/RG-US-SynIDShare01/providers/Microsoft.KeyVault/vaults/KV-US-SynShare01p2"
+          },
+          "secretName": "KVSec-Pass-SynShare01"
+        }
+      },
+      "azureVM_adminUser": {
+        "reference": {
+          "keyVault": {
+            "id": "/subscriptions/4ebd8350-9a7a-42f0-bc93-0eea92ca9757/resourceGroups/RG-US-SynIDShare01/providers/Microsoft.KeyVault/vaults/KV-US-SynShare01p2"
+          },
+          "secretName": "KVSec-US-SynShare01"
+        }
+      },
+      "centralizedLogAnalytics_workspaceId": {
+        "value": "NA"
+      },
+      "decentralizedLogAnalytics_workspaceId": {
+        "value": "/subscriptions/4ebd8350-9a7a-42f0-bc93-0eea92ca9757/resourcegroups/RG-US-SynSecShare01/providers/microsoft.operationalinsights/workspaces/LOG-US-SynShare01"
+      },
+      "deploymentEnvironment": {
+        "value": "d"
+      },
+      "ExistingVNetName": {
+        "value": "NET-US-SynDev01"
+      },
+      "ExistingVNetRGName": {
+        "value": "RG-US-SynNetDev01"
+      },
+      "ExistingVNetDataSNName": {
+        "value": "NET-US-SynDev01-data01"
+      },
+      "monitoringApproach": {
+        "value": "Decentralized"
+      },
+      "monitorLogRetention": {
+        "value": 365
+      },
+      "resourceLocation": {
+        "value": "southcentralus"
+      },
+      "resourceNamePrefix": {
+        "value": "Syn"
+      },
+      "resourceTags": {
+        "value": {
+          "BusinessOwner": "Jackie Varanelli",
+          "BusinessUnit": "ENT",
+          "Environment": "non-prod",
+          "CostCenter": "356147",
+          "Resource Purpose": "SQL Product Services",
+          "Department": "Claims Analytics"
+        }
+      },
+      "sqlDataDisksCount": {
+        "value": 1
+      },
+      "sqlLogDisksCount": {
+        "value": 1
+      }
+    }
+  }
+}

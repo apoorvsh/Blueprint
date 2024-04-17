@@ -1,0 +1,610 @@
+{
+  "kind": "template",
+  "type": "Microsoft.Blueprint/blueprints/artifacts",
+  "properties": {
+    "displayName": "Azure Logic App - Private Inbound and Outbound Deployment",
+    "description": "",
+    "dependsOn": ["01a-storage-template"],
+    "template": {
+      "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "resourceTags": {
+          "type": "object"
+        },
+        "localBU": {
+          "type": "string",
+          "metadata": {
+            "displayName": "BU for the resource names deployed in this template"
+          }
+        },
+        "storageAccountName": {
+          "type": "string",
+          "metadata": {
+            "description": "Application storage account name. This should be within the same resource group."
+          }
+        },
+        "monitoringApproach": {
+          "type": "string",
+          "metadata": {
+            "description": "Organizational monitoring approach. For more info: https://docs.microsoft.com/en-us/azure/azure-monitor/platform/design-logs-deployment#important-considerations-for-an-access-control-strategy"
+          }
+        },
+        "decentralizedLogAnalytics_workspaceId": {
+          "type": "string",
+          "metadata": {
+            "description": "ResourceID of the Decentralized of Functional approach Log Analytics workspace in which resource logs should be saved."
+          }
+        },
+        "centralizedLogAnalytics_workspaceId": {
+          "type": "string",
+          "metadata": {
+            "displayName": "Log Analytics Workspace Id for all auditing and diagnostics",
+            "description": "Specifies the Log Analytics Workspace Resource ID that should be used for auditing and diagnostics."
+          },
+          "allowedValues": []
+        },
+        "deploymentEnvironment": {
+          "type": "string",
+          "metadata": {
+            "description": "Deployment environment. Production, QA & Development provide enhanced security and monitoring. Sanbox is meant for POC and short lived exploration only.  See the environment mapping to understand more details."
+          }
+        },
+        "monitorLogRetention": {
+          "type": "int",
+          "metadata": {
+            "displayName": "Metrics & Log Retention (days)",
+            "description": "The retention is days for auditing, diagnostic and metric logs per your organizations requirements. Default = 180 days"
+          }
+        },
+        "networkAccessApproach": {
+          "type": "string",
+          "metadata": {
+            "displayName": "Azure Networking Access Approach",
+            "description": "Select your Organizational networking access approach. For public endpoint accessibility, choose 'Public' or 'Both'. For complete private connectivity with private endpoints only select 'Private'."
+          }
+        },
+        "ExistingPrivateDNSId_app": {
+          "type": "string",
+          "metadata": {
+            "description": "If you are leveraging a Hub and Spoke networking approach with private DNS zones and DNS routing, those zones should be created and associated with the hub network"
+          }
+        },
+        "networkArchitectureApproach": {
+          "type": "string",
+          "metadata": {
+            "description": "Conditional control for Private DNS Services"
+          }
+        },
+        "VNetResourceGroupName": {
+          "type": "string"
+        },
+        "VirtualNetworkName": {
+          "type": "string",
+          "metadata": {
+            "displayName": "VNet for VNet Endpoint Rules"
+          }
+        },
+        "SubnetName": {
+          "type": "string",
+          "metadata": {
+            "displayName": "Subnet for VNet App Server Farms Rules"
+          }
+        },
+        "endpointSubnetName": {
+          "type": "string",
+          "metadata": {
+            "displayName": "Subnet for VNet Endpoint Rules"
+          }
+        },
+        "PrivateDNSIntegration": {
+          "type": "bool",
+          "metadata": {
+            "displayName": "Optional: Integrate all private services with existing or new private DNS zones? (Recommended)",
+            "description": "If you are leveraging a Hub and Spoke networking approach with private DNS zones and DNS routing, you can register DNS entries with existing zones. This DNS Zone is for the private endpoint configurations. "
+          }
+        }
+      },
+      "variables": {
+        "appId": "[resourceId('Microsoft.Web/sites', variables('appName'))]",
+        "appName": "[toLower(concat(parameters('deploymentEnvironment'),substring(resourceGroup().location, 0, 1),last(resourceGroup().location),'-',parameters('localBU'),'-app01ab'))]",
+        "psAppId": "[resourceId('Microsoft.Web/sites', variables('appName_ps'))]",
+        "appName_ps": "[toLower(concat(parameters('deploymentEnvironment'),substring(resourceGroup().location, 0, 1),last(resourceGroup().location),'-',parameters('localBU'),'-app01ab'))]",
+        "hostingPlanName": "[toLower(concat(parameters('deploymentEnvironment'),substring(resourceGroup().location, 0, 1),last(resourceGroup().location),'-',parameters('localBU'),'-appplan01'))]",
+        "appPrivateEndpointGroupName": "sites",
+        "appPrivateEndpointId": "[resourceId('Microsoft.Network/privateEndpoints', variables('appPrivateEndpointName'))]",
+        "privateEndpointName": "[concat(variables('appName'),'link')]",
+        "appPrivateEndpointName": "[concat(variables('privateEndpointName'),'sites01')]",
+        "appPrivateDnsZoneGroup": "[concat(variables('appPrivateEndpointName'),'/', variables('appPrivateEndpointGroupName'), 'PrivateDnsZoneGroup')]",
+        "psappPrivateEndpointId": "[resourceId('Microsoft.Network/privateEndpoints', variables('psappPrivateEndpointName'))]",
+        "psappPrivateEndpointName": "[concat(variables('privateEndpointName'),'sites02')]",
+        "psappPrivateDnsZoneGroup": "[concat(variables('psappPrivateEndpointName'),'/', variables('appPrivateEndpointGroupName'), 'PrivateDnsZoneGroup')]",
+        "appPublicDNSZoneForwarder": ".azurewebsites.net",
+        "appPrivateDnsZoneName": "[concat('privatelink', variables('appPublicDNSZoneForwarder'))]",
+        "appPrivateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', variables('appPrivateDnsZoneName'))]",
+        "vnetId": "[resourceId(parameters('VNetResourceGroupName'),'Microsoft.Network/virtualNetworks', parameters('VirtualNetworkName'))]",
+        "subnetId": "[resourceId(parameters('VNetResourceGroupName'), 'Microsoft.Network/virtualNetworks/subnets', parameters('VirtualNetworkName'), parameters('SubnetName'))]",
+        "endpointsubnetId": "[resourceId(parameters('VNetResourceGroupName'), 'Microsoft.Network/virtualNetworks/subnets', parameters('VirtualNetworkName'), parameters('endpointSubnetName'))]",
+        "applicationInsightsName": "[toLower(concat(parameters('deploymentEnvironment'),substring(resourceGroup().location, 0, 1),last(resourceGroup().location),'-',parameters('localBU'),'-ai01'))]",
+        "workspaceId": "[if(equals(parameters('monitoringApproach'), 'Decentralized'), parameters('decentralizedLogAnalytics_workspaceId'),parameters('centralizedLogAnalytics_workspaceId'))]",
+        "environmentConfig": {
+          "p": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "advancedThreatProtectionEnabled": true,
+            "sku": "WS1",
+            "size": "WS1",
+            "family": "WS",
+            "tier": "WorkflowStandard",
+            "capacity": "3",
+            "skuCode": "WS1",
+            "workerSize": "3",
+            "workerSizeId": "3",
+            "numberOfWorkers": "2",
+            "netFrameworkVersion": "v6.0",
+            "zoneRedundant": false,
+            "powerShellVersion": "7.2"
+          },
+          "dv": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "advancedThreatProtectionEnabled": true,
+            "sku": "WS2",
+            "size": "WS2",
+            "family": "WS",
+            "tier": "WorkflowStandard",
+            "capacity": "3",
+            "skuCode": "WS2",
+            "workerSize": "3",
+            "workerSizeId": "3",
+            "numberOfWorkers": "1",
+            "netFrameworkVersion": "v6.0",
+            "zoneRedundant": false,
+            "powerShellVersion": "7.2"
+          },
+          "q": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "advancedThreatProtectionEnabled": true,
+            "sku": "WS3",
+            "size": "WS3",
+            "family": "WS",
+            "tier": "WorkflowStandard",
+            "capacity": "3",
+            "skuCode": "WS3",
+            "workerSize": "3",
+            "workerSizeId": "3",
+            "numberOfWorkers": "1",
+            "netFrameworkVersion": "v6.0",
+            "zoneRedundant": false,
+            "powerShellVersion": "7.2"
+          },
+          "pp": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "advancedThreatProtectionEnabled": true,
+            "sku": "WS1",
+            "size": "WS1",
+            "family": "WS",
+            "tier": "WorkflowStandard",
+            "capacity": "3",
+            "skuCode": "WS1",
+            "workerSize": "3",
+            "workerSizeId": "3",
+            "numberOfWorkers": "2",
+            "netFrameworkVersion": "v6.0",
+            "zoneRedundant": false,
+            "powerShellVersion": "7.2"
+          },
+          "prpr": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "advancedThreatProtectionEnabled": true,
+            "sku": "WS2",
+            "size": "WS2",
+            "family": "WS",
+            "tier": "WorkflowStandard",
+            "capacity": "3",
+            "skuCode": "WS2",
+            "workerSize": "3",
+            "workerSizeId": "3",
+            "numberOfWorkers": "2",
+            "netFrameworkVersion": "v6.0",
+            "zoneRedundant": false,
+            "powerShellVersion": "7.2"
+          },
+          "pr": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "advancedThreatProtectionEnabled": true,
+            "sku": "WS3",
+            "size": "WS3",
+            "family": "WS",
+            "tier": "WorkflowStandard",
+            "capacity": "3",
+            "skuCode": "WS3",
+            "workerSize": "3",
+            "workerSizeId": "3",
+            "numberOfWorkers": "2",
+            "netFrameworkVersion": "v6.0",
+            "zoneRedundant": false,
+            "powerShellVersion": "7.2"
+          },
+          "uat": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "advancedThreatProtectionEnabled": true,
+            "sku": "WS1",
+            "size": "WS1",
+            "family": "WS",
+            "tier": "WorkflowStandard",
+            "capacity": "3",
+            "skuCode": "WS1",
+            "workerSize": "3",
+            "workerSizeId": "3",
+            "numberOfWorkers": "2",
+            "netFrameworkVersion": "v6.0",
+            "zoneRedundant": false,
+            "powerShellVersion": "7.2"
+          },
+          "sb": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "advancedThreatProtectionEnabled": true,
+            "sku": "WS2",
+            "size": "WS2",
+            "family": "WS",
+            "tier": "WorkflowStandard",
+            "capacity": "3",
+            "skuCode": "WS2",
+            "workerSize": "3",
+            "workerSizeId": "3",
+            "numberOfWorkers": "2",
+            "netFrameworkVersion": "v6.0",
+            "zoneRedundant": false,
+            "powerShellVersion": "7.2"
+          },
+          "dr": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "advancedThreatProtectionEnabled": true,
+            "sku": "WS3",
+            "size": "WS3",
+            "family": "WS",
+            "tier": "WorkflowStandard",
+            "capacity": "3",
+            "skuCode": "WS3",
+            "workerSize": "3",
+            "workerSizeId": "3",
+            "numberOfWorkers": "2",
+            "netFrameworkVersion": "v6.0",
+            "zoneRedundant": false,
+            "powerShellVersion": "7.2"
+          },
+          "int": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "advancedThreatProtectionEnabled": true,
+            "sku": "WS1",
+            "size": "WS1",
+            "family": "WS",
+            "tier": "WorkflowStandard",
+            "capacity": "3",
+            "skuCode": "WS1",
+            "workerSize": "3",
+            "workerSizeId": "3",
+            "numberOfWorkers": "2",
+            "netFrameworkVersion": "v6.0",
+            "zoneRedundant": false,
+            "powerShellVersion": "7.2"
+          }
+        },
+        "NetworkingApproachPrivateDnsZoneId": {
+          "Hub & Spoke": {
+            "appPrivateDnsZoneIdReg": "[parameters('ExistingPrivateDNSId_app')]"
+          },
+          "Federated": {
+            "appPrivateDnsZoneIdReg": "[variables('appPrivateDnsZoneId')]"
+          }
+        },
+
+        "networkAccessApproach": {
+          "Private": {
+            "PublicIP": false,
+            "PrivateEndpoint": true,
+            "PublicAccess": "Disabled"
+          },
+          "Both": {
+            "PublicIP": true,
+            "PrivateEndpoint": true,
+            "PublicAccess": "Enabled"
+          },
+          "Public": {
+            "PublicIP": true,
+            "PrivateEndpoint": false,
+            "PublicAccess": "Enabled"
+          }
+        }
+      },
+      "resources": [
+        {
+          "apiVersion": "2018-02-01",
+          "name": "pid-bcd6fdf3-b0d0-5123-b5c2-4db36514dd26",
+          "type": "Microsoft.Resources/deployments",
+          "properties": {
+            "mode": "Incremental",
+            "template": {
+              "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+              "contentVersion": "1.0.0.0",
+              "resources": []
+            }
+          }
+        },
+        {
+          "apiVersion": "2021-03-01",
+          "name": "[variables('hostingPlanName')]",
+          "type": "Microsoft.Web/serverfarms",
+          "location": "[resourceGroup().location]",
+          "kind": "elastic",
+          "tags": "[parameters('resourceTags')]",
+          "dependsOn": [],
+          "properties": {
+            "name": "[variables('hostingPlanName')]",
+            "workerSize": "[variables('environmentConfig')[parameters('deploymentEnvironment')].workerSize]",
+            "workerSizeId": "[variables('environmentConfig')[parameters('deploymentEnvironment')].workerSizeId]",
+            "numberOfWorkers": "[variables('environmentConfig')[parameters('deploymentEnvironment')].numberOfWorkers]",
+            "maximumElasticWorkerCount": 20,
+            "zoneRedundant": "[variables('environmentConfig')[parameters('deploymentEnvironment')].zoneRedundant]"
+          },
+          "sku": {
+            "tier": "[variables('environmentConfig')[parameters('deploymentEnvironment')].tier]",
+            "name": "[variables('environmentConfig')[parameters('deploymentEnvironment')].skuCode]",
+            "size": "[variables('environmentConfig')[parameters('deploymentEnvironment')].size]",
+            "family": "[variables('environmentConfig')[parameters('deploymentEnvironment')].family]",
+            "capacity": "[variables('environmentConfig')[parameters('deploymentEnvironment')].capacity]"
+          }
+        },
+        {
+          "type": "Microsoft.Insights/components",
+          "apiVersion": "2018-05-01-preview",
+          "name": "[variables('applicationInsightsName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[parameters('resourceTags')]",
+          "kind": "other",
+          "properties": {
+            "Application_Type": "other"
+          }
+        },
+        {
+          "apiVersion": "2018-11-01",
+          "name": "[variables('appName')]",
+          "type": "Microsoft.Web/sites",
+          "kind": "functionapp,workflowapp",
+          "location": "[resourceGroup().location]",
+          "tags": "[parameters('resourceTags')]",
+          "dependsOn": [
+            "[concat('Microsoft.Web/serverfarms/', variables('hostingPlanName'))]",
+            "[concat('Microsoft.Insights/components/', variables('applicationInsightsName'))]"
+          ],
+          "identity": {
+            "type": "SystemAssigned"
+          },
+          "properties": {
+            "name": "[variables('appName')]",
+            "siteConfig": {
+              "appSettings": [
+                {
+                  "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                  "value": "[reference(resourceId('microsoft.insights/components', variables('applicationInsightsName')), '2018-05-01-preview').InstrumentationKey]"
+                },
+                {
+                  "name": "FUNCTIONS_EXTENSION_VERSION",
+                  "value": "~4"
+                },
+                {
+                  "name": "FUNCTIONS_WORKER_RUNTIME",
+                  "value": "node"
+                },
+                {
+                  "name": "AzureWebJobsStorage",
+                  "value": "[concat('DefaultEndpointsProtocol=https;AccountName=',parameters('storageAccountName'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2019-06-01').keys[0].value,';EndpointSuffix=','core.windows.net')]"
+                },
+                {
+                  "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+                  "value": "[concat('DefaultEndpointsProtocol=https;AccountName=',parameters('storageAccountName'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2019-06-01').keys[0].value,';EndpointSuffix=','core.windows.net')]"
+                },
+                {
+                  "name": "WEBSITE_CONTENTSHARE",
+                  "value": "[toLower(variables('appName'))]"
+                },
+                {
+                  "name": "WEBSITE_CONTENTOVERVNET",
+                  "value": "1"
+                },
+                {
+                  "name": "WEBSITE_VNET_ROUTE_ALL",
+                  "value": "1"
+                },
+                {
+                  "name": "AzureFunctionsJobHost__extensionBundle__id",
+                  "value": "Microsoft.Azure.Functions.ExtensionBundle.Workflows"
+                },
+                {
+                  "name": "APP_KIND",
+                  "value": "workflowApp"
+                }
+              ],
+              "cors": {
+                "allowedOrigins": ["https://portal.azure.com"]
+              },
+              "use32BitWorkerProcess": true,
+              "vnetRouteAllEnabled": true,
+              "netFrameworkVersion": "[variables('environmentConfig')[parameters('deploymentEnvironment')].netFrameworkVersion]"
+            },
+            "serverFarmId": "[concat('/subscriptions/', subscription().Id,'/resourcegroups/', resourcegroup().name, '/providers/Microsoft.Web/serverfarms/', variables('hostingPlanName'))]",
+            "clientAffinityEnabled": false,
+            "virtualNetworkSubnetId": "[variables('subnetId')]"
+          },
+          "resources": [
+            {
+              "condition": "[equals(variables('environmentConfig')[parameters('deploymentEnvironment')].diagnostics,'Yes')]",
+              "type": "providers/diagnosticSettings",
+              "name": "[concat('Microsoft.Insights/', 'appDiagnostics')]",
+              "dependsOn": ["[variables('appName')]"],
+              "apiVersion": "2017-05-01-preview",
+              "properties": {
+                "name": "appDiagnostics",
+
+                "workspaceId": "[variables('workspaceId')]",
+                "logs": [
+                  {
+                    "category": "WorkflowRuntime",
+                    "categoryGroup": null,
+                    "enabled": true,
+                    "retentionPolicy": {
+                      "days": 0,
+                      "enabled": false
+                    }
+                  },
+                  {
+                    "category": "FunctionAppLogs",
+                    "categoryGroup": null,
+                    "enabled": true,
+                    "retentionPolicy": {
+                      "days": 0,
+                      "enabled": false
+                    }
+                  }
+                ],
+                "metrics": [
+                  {
+                    "category": "AllMetrics",
+                    "enabled": true,
+                    "retentionPolicy": {
+                      "enabled": false,
+                      "days": "[parameters('monitorLogRetention')]"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "condition": "[and(equals(parameters('networkArchitectureApproach'),'Federated'),variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint)]",
+          "type": "Microsoft.Network/privateDnsZones",
+          "apiVersion": "2018-09-01",
+          "name": "[variables('appPrivateDnsZoneName')]",
+          "tags": "[parameters('resourceTags')]",
+          "location": "global",
+          "properties": {
+            "maxNumberOfRecordSets": 25000,
+            "maxNumberOfVirtualNetworkLinks": 1000,
+            "maxNumberOfVirtualNetworkLinksWithRegistration": 100
+          }
+        },
+        {
+          "condition": "[variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint]",
+          "type": "Microsoft.Network/privateEndpoints",
+          "apiVersion": "2020-04-01",
+          "name": "[variables('appPrivateEndpointName')]",
+          "tags": "[parameters('resourceTags')]",
+          "location": "[resourceGroup().location]",
+          "dependsOn": ["[variables('appId')]"],
+          "properties": {
+            "privateLinkServiceConnections": [
+              {
+                "name": "[variables('appPrivateEndpointName')]",
+                "properties": {
+                  "privateLinkServiceId": "[variables('appId')]",
+                  "groupIds": ["[variables('appPrivateEndpointGroupName')]"]
+                }
+              }
+            ],
+            "subnet": {
+              "id": "[variables('endpointsubnetId')]"
+            },
+            "customDnsConfigs": [
+              {
+                "fqdn": "[concat(variables('appName'), variables('appPublicDNSZoneForwarder'))]"
+              }
+            ]
+          }
+        },
+        {
+          "condition": "[and(variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint,parameters('PrivateDNSIntegration'))]",
+          "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+          "apiVersion": "2020-03-01",
+          "name": "[variables('appPrivateDnsZoneGroup')]",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[variables('appPrivateDnsZoneId')]",
+            "[variables('appPrivateEndpointId')]"
+          ],
+          "properties": {
+            "privateDnsZoneConfigs": [
+              {
+                "name": "dnsConfig",
+                "properties": {
+                  "privateDnsZoneId": "[variables('NetworkingApproachPrivateDnsZoneId')[parameters('networkArchitectureApproach')].appPrivateDnsZoneIdReg]"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "outputs": {}
+    },
+    "resourceGroup": "AutomationRG",
+    "parameters": {
+      "resourceTags": {
+        "value": "[parameters('resourceTags')]"
+      },
+      "localBU": {
+        "value": "[parameters('resourceNameBU')]"
+      },
+      "networkAccessApproach": {
+        "value": "[parameters('networkAccessApproach')]"
+      },
+      "networkArchitectureApproach": {
+        "value": "[parameters('networkArchitectureApproach')]"
+      },
+      "VirtualNetworkName": {
+        "value": "[parameters('ExistingVNetName')]"
+      },
+      "SubnetName": {
+        "value": "[parameters('ExistingVNetAppSNName')]"
+      },
+      "endpointSubnetName": {
+        "value": "[parameters('ExistingVNetDataSNName')]"
+      },
+      "ExistingPrivateDNSId_app": {
+        "value": "[parameters('ExistingPrivateDNSId_app')]"
+      },
+      "VNetResourceGroupName": {
+        "value": "[parameters('ExistingVNetRGName')]"
+      },
+      "storageAccountName": {
+        "value": "[artifacts('01a-storage-template').outputs.storageAccountName]"
+      },
+      "monitoringApproach": {
+        "value": "[parameters('monitoringApproach')]"
+      },
+      "decentralizedLogAnalytics_workspaceId": {
+        "value": "[parameters('decentralizedLogAnalytics_workspaceId')]"
+      },
+      "centralizedLogAnalytics_workspaceId": {
+        "value": "[parameters('centralizedLogAnalytics_workspaceId')]"
+      },
+      "deploymentEnvironment": {
+        "value": "[parameters('deploymentEnvironment')]"
+      },
+      "monitorLogRetention": {
+        "value": "[parameters('monitorLogRetention')]"
+      },
+      "PrivateDNSIntegration": {
+        "value": "[parameters('PrivateDNSIntegration')]"
+      }
+    }
+  }
+}

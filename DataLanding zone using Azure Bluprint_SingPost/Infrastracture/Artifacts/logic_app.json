@@ -1,0 +1,69 @@
+{
+  "kind": "template",
+  "properties": {
+    "template": {
+      "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "projectCode": {
+          "type": "string",
+          "metadata": {
+            "description": "Project Code"
+          }
+        },
+        "environment": {
+          "type": "string",
+          "metadata": {
+            "description": "Environment of Project"
+          }
+        },
+        "combineTags": {
+          "type": "object",
+          "metadata": {
+            "discription": "Combine Resource Tags for All resources"
+          }
+        }
+      },
+      "variables": {
+        "logicAppName": "[toLower(concat('la-',parameters('projectCode'),'-',parameters('environment'),'-mailalert01'))]",
+        "logiAppDefaultTag": {
+          "Name": "[variables('logicAppName')]"
+        }
+      },
+      "resources": [
+        {
+          "type": "Microsoft.Logic/workflows",
+          "apiVersion": "2017-07-01",
+          "name": "[variables('logicAppName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('logiAppDefaultTag'), parameters('combineTags'))]",
+          "properties": {
+            "definition": {
+              "$schema": "https://schema.management.azure.com/schemas/2016-06-01/Microsoft.Logic.json",
+              "contentVersion": "1.0.0.0",
+              "parameters": {},
+              "triggers": {},
+              "actions": {},
+              "outputs": {}
+            }
+          }
+        }
+      ]
+    },
+    "resourceGroup": "dataPlatform_Rg",
+    "displayName": "Logic App Creation",
+    "parameters": {
+      "projectCode": {
+        "value": "[parameters('projectCode_assign')]"
+      },
+      "environment": {
+        "value": "[parameters('environment_assign')]"
+      },
+      "combineTags": {
+        "value": "[parameters('combineTags_assign')]"
+      }
+    }
+  },
+  "type": "Microsoft.Blueprint/blueprints/artifacts",
+  "name": "logic_app"
+}

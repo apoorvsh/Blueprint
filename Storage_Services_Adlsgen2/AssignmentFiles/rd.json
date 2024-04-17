@@ -1,0 +1,105 @@
+{
+  "identity": {
+    "type": "UserAssigned",
+    "userAssignedIdentities": {
+      "/subscriptions/da6c049b-87cd-4e56-b023-fd0b825d8c35/resourceGroups/EnterpriseSolutions/providers/Microsoft.ManagedIdentity/userAssignedIdentities/ADO_ManagedIdentity_ServiceConnection": {}
+    }
+  },
+  "location": "eastus2",
+  "properties": {
+    "blueprintId": "/subscriptions/da6c049b-87cd-4e56-b023-fd0b825d8c35/providers/Microsoft.Blueprint/blueprints/Hanover_StorageServices_BP",
+    "resourceGroups": {
+      "DatabricksRG": {
+        "name": "rde2-claps-databricks-rg01"
+      }
+    },
+    "locks": {
+      "mode": "AllResourcesDoNotDelete"
+    },
+    "parameters": {
+      "deploymentEnvironment": {
+        "value": "rd"
+      },
+      "deploymentManagedIdentityId": {
+        "value": "4f2c2872-07a7-4da0-b615-64c83183d381"
+      },
+      "deploymentManagedIdentityName": {
+        "value": "ADO_ManagedIdentity_ServiceConnection"
+      },
+      "deploymentManagedIdentityRGName": {
+        "value": "EnterpriseSolutions"
+      },
+      "ExistingPrivateDNSId_blob": {
+        "value": "/subscriptions/718564d6-a95c-471e-95d1-7e0b573c4a15/resourceGroups/azinfobloxrg/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
+      },
+      "ExistingPrivateDNSId_file": {
+        "value": "/subscriptions/718564d6-a95c-471e-95d1-7e0b573c4a15/resourceGroups/azinfobloxrg/providers/Microsoft.Network/privateDnsZones/privatelink.file.core.windows.net"
+      },
+      "ExistingPrivateDNSId_queue": {
+        "value": "/subscriptions/718564d6-a95c-471e-95d1-7e0b573c4a15/resourceGroups/azinfobloxrg/providers/Microsoft.Network/privateDnsZones/privatelink.queue.core.windows.net"
+      },
+      "ExistingPrivateDNSId_table": {
+        "value": "/subscriptions/718564d6-a95c-471e-95d1-7e0b573c4a15/resourceGroups/azinfobloxrg/providers/Microsoft.Network/privateDnsZones/privatelink.table.core.windows.net"
+      },
+      "ExistingPrivateDNSId_dfs":{
+        "value": "/subscriptions/718564d6-a95c-471e-95d1-7e0b573c4a15/resourceGroups/azinfobloxrg/providers/Microsoft.Network/privateDnsZones/privatelink.dfs.core.windows.net"
+      },
+      "PrivateDNSIntegration": {
+        "value": true
+      },
+      "ExistingVNetName": {
+        "value": "CL-RD-EastUS2-vnet"
+      },
+      "ExistingVNetRGName": {
+        "value": "NetworkServices"
+      },
+      "ExistingVNetDataSNName": {
+        "value": "rde2-claps-vnet01-data01"
+      },
+      "keyVaultRGName":{
+        "value":"rde2-claps-databricks-rg01"
+      },
+      "keyVaultName":{
+        "value":"red2-claps-kv01"
+      },
+      "databricksPrinciplaID":{
+        "value":"a5f23d3b-4370-461f-a67f-b3b7895d90ff"
+      },
+      "databricksName":{
+        "value":"AzureDatabricks"
+      },
+      "storageSLARequirement": {
+        "Value": "12 nines"
+      },
+      "monitorLogRetention": {
+        "value": 0
+      },
+      "networkAccessApproach": {
+        "value": "Private"
+      },
+      "networkArchitectureApproach": {
+        "value": "Hub & Spoke"
+      },
+      "resourceLocation": {
+        "value": "eastus2"
+      },
+      "KeyVaultLocation": {
+        "value": "eastus"
+      },
+      "resourceNameBU": {
+        "value": "claps"
+      },
+      "resourceTags": {
+        "value": {
+          "BusinessOwner": "WARREN, DENNIS M",
+          "BusinessUnit": "CL",
+          "Environment": "SB",
+          "CostCenter": "356117",
+          "Resource Purpose":  "Databricks Services",
+          "Department":  "Commercial Speciality Product",
+          "Operation owner": "STEPKA, MARGO"
+        }
+      }
+    }
+  }
+}

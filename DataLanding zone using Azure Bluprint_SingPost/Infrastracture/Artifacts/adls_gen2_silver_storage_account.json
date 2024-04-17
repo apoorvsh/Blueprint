@@ -1,0 +1,225 @@
+{
+  "kind": "template",
+  "properties": {
+    "dependsOn": ["subnets"],
+    "template": {
+      "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "projectCode": {
+          "type": "string",
+          "metadata": {
+            "description": "Project Code"
+          }
+        },
+        "environment": {
+          "type": "string",
+          "metadata": {
+            "description": "Environment of Project"
+          }
+        },
+        "combineTags": {
+          "type": "object",
+          "metadata": {
+            "discription": "Combine Resource Tags for All resources"
+          }
+        },
+        "dataSubnetRef": {
+          "type": "string",
+          "metadata": {
+            "description": "Referencing Data Subnet Id"
+          }
+        }
+      },
+      "variables": {
+        "storageAccountName": "[toLower(concat('dls',parameters('projectCode'),parameters('environment'),'silversa03'))]",
+        "blobPrivateEndpointName": "[toLower(concat('pep-',parameters('projectCode'),'-',parameters('environment'),'-blob02'))]",
+        "dfsPrivateEndpointName": "[toLower(concat('pep-',parameters('projectCode'),'-',parameters('environment'),'-dfs02'))]",
+        "blobCustomNetworkInterfaceName": "[toLower(concat('nic',parameters('projectCode'),parameters('environment'),'blob02'))]",
+        "dfsCustomNetworkInterfaceName": "[toLower(concat('nic',parameters('projectCode'),parameters('environment'),'dfs02'))]",
+        "containerName": "[toLower(concat('synw-',parameters('projectCode'),'-',parameters('environment'),'-raw01'))]",
+        "storageAccountType": "Standard_LRS",
+        "storageAccountKind": "StorageV2",
+        "accessTier": "Hot",
+        "minimumTlsVersion": "TLS1_2",
+        "supportsHttpsTrafficOnly": true,
+        "allowBlobPublicAccess": true,
+        "allowCrossTenantReplication": true,
+        "allowSharedKeyAccess": true,
+        "requireInfrastructureEncryption": true,
+        "isHnsEnabled": true,
+        "isNfsV3Enabled": false,
+        "publicNetworkAccess": "Enabled",
+        "containerPublicAccess": "None",
+        "storageAccountDefaultTag": {
+          "Name": "[variables('storageAccountName')]"
+        },
+        "blobPrivateEndpointDefaultTag": {
+          "Name": "[variables('blobPrivateEndpointName')]"
+        },
+        "dfsPrivateEndpointDefaultTag": {
+          "Name": "[variables('dfsPrivateEndpointName')]"
+        }
+      },
+      "resources": [
+        {
+          "type": "Microsoft.Storage/storageAccounts",
+          "apiVersion": "2019-06-01",
+          "name": "[variables('storageAccountName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('storageAccountDefaultTag'),parameters('combineTags'))]",
+          "sku": {
+            "name": "[variables('storageAccountType')]"
+          },
+          "kind": "[variables('storageAccountKind')]",
+          "properties": {
+            "accessTier": "[variables('accessTier')]",
+            "minimumTlsVersion": "[variables('minimumTlsVersion')]",
+            "supportsHttpsTrafficOnly": "[variables('supportsHttpsTrafficOnly')]",
+            "allowBlobPublicAccess": "[variables('allowBlobPublicAccess')]",
+            "allowCrossTenantReplication": "[variables('allowCrossTenantReplication')]",
+            "allowSharedKeyAccess": "[variables('allowSharedKeyAccess')]",
+            "encryption": {
+              "keySource": "Microsoft.Storage",
+              "requireInfrastructureEncryption": "[variables('requireInfrastructureEncryption')]",
+              "services": {
+                "blob": {
+                  "enabled": true,
+                  "keyType": "Account"
+                },
+                "file": {
+                  "enabled": true,
+                  "keyType": "Account"
+                },
+                "queue": {
+                  "enabled": true,
+                  "keyType": "Service"
+                },
+                "table": {
+                  "enabled": true,
+                  "keyType": "Service"
+                }
+              }
+            },
+            "networkAcls": {
+              "bypass": "AzureServices",
+              "defaultAction": "Deny",
+              "ipRules": [],
+              "virtualNetworkRules": []
+            },
+            "keyPolicy": {
+              "keyExpirationPeriodInDays": 7
+            },
+            "isHnsEnabled": "[variables('isHnsEnabled')]",
+            "isNfsV3Enabled": "[variables('isNfsV3Enabled')]",
+            "publicNetworkAccess": "[variables('publicNetworkAccess')]"
+          }
+        },
+        {
+          "type": "Microsoft.Storage/storageAccounts/blobServices",
+          "apiVersion": "2022-05-01",
+          "name": "[concat(variables('storageAccountName'),'/','default')]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Storage/storageAccounts',variables('storageAccountName'))]"
+          ],
+          "properties": {
+            "containerDeleteRetentionPolicy": {
+              "days": 7,
+              "enabled": true
+            },
+            "deleteRetentionPolicy": {
+              "days": 7,
+              "enabled": true
+            }
+          }
+        },
+        {
+          "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+          "apiVersion": "2022-05-01",
+          "name": "[concat(variables('storageAccountName'),'/default/',variables('containerName'))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Storage/storageAccounts',variables('storageAccountName'))]"
+          ],
+          "properties": {
+            "publicAccess": "[variables('containerPublicAccess')]"
+          }
+        },
+        {
+          "type": "Microsoft.Network/privateEndpoints",
+          "apiVersion": "2021-05-01",
+          "name": "[variables('blobPrivateEndpointName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('blobPrivateEndpointDefaultTag'), parameters('combineTags'))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+          ],
+          "properties": {
+            "subnet": {
+              "id": "[parameters('dataSubnetRef')]"
+            },
+            "privateLinkServiceConnections": [
+              {
+                "name": "[variables('blobPrivateEndpointName')]",
+                "properties": {
+                  "privateLinkServiceId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+                  "groupIds": ["blob"]
+                }
+              }
+            ],
+            "customNetworkInterfaceName": "[variables('blobCustomNetworkInterfaceName')]"
+          }
+        },
+        {
+          "type": "Microsoft.Network/privateEndpoints",
+          "apiVersion": "2021-05-01",
+          "name": "[variables('dfsPrivateEndpointName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('dfsPrivateEndpointDefaultTag'), parameters('combineTags'))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+            "[resourceId('Microsoft.Network/privateEndpoints', variables('blobPrivateEndpointName'))]"
+          ],
+          "properties": {
+            "subnet": {
+              "id": "[parameters('dataSubnetRef')]"
+            },
+            "privateLinkServiceConnections": [
+              {
+                "name": "[variables('dfsPrivateEndpointName')]",
+                "properties": {
+                  "privateLinkServiceId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+                  "groupIds": ["dfs"]
+                }
+              }
+            ],
+            "customNetworkInterfaceName": "[variables('dfsCustomNetworkInterfaceName')]"
+          }
+        }
+      ],
+      "outputs": {
+        "storageAccountId": {
+          "type": "string",
+          "value": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+        }
+      }
+    },
+    "resourceGroup": "dataPlatform_Rg",
+    "displayName": "creation of Silver Azure Storage Account with its Private Endpoints",
+    "parameters": {
+      "projectCode": {
+        "value": "[parameters('projectCode_assign')]"
+      },
+      "environment": {
+        "value": "[parameters('environment_assign')]"
+      },
+      "combineTags": {
+        "value": "[parameters('combineTags_assign')]"
+      },
+      "dataSubnetRef": {
+        "value": "[artifacts('subnets').outputs.dataSubnetId]"
+      }
+    }
+  },
+  "type": "Microsoft.Blueprint/blueprints/artifacts",
+  "name": "adls_gen2_silver_storage_account"
+}

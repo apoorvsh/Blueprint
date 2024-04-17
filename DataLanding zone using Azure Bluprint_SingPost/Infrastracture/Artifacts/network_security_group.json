@@ -1,0 +1,132 @@
+{
+  "kind": "template",
+  "properties": {
+    "displayName": "Deploy Network Security Group",
+    "description": "Deploy Network Security Group ",
+    "template": {
+      "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "projectCode": {
+          "type": "string",
+          "metadata": {
+            "description": "Project Code"
+          }
+        },
+        "environment": {
+          "type": "string",
+          "metadata": {
+            "description": "Environment of Project"
+          }
+        },
+        "combineTags": {
+          "type": "object",
+          "metadata": {
+            "discription": "Combine Resource Tags for All resources"
+          }
+        }
+      },
+      "variables": {
+        "computeNsgName": "[toLower(concat('nsg-',parameters('projectCode'),'-', parameters('environment'),'-compute01'))]",
+        "dataNsgName": "[toLower(concat('nsg',parameters('projectCode'),'-',parameters('environment'),'-data01'))]",
+        "webNsgName": "[toLower(concat('nsg',parameters('projectCode'),'-',parameters('environment'),'-web01'))]",
+        "databricksNsgName": "[toLower(concat('nsg',parameters('projectCode'),'-',parameters('environment'),'-db01'))]",
+        "computeDefaultTag": {
+          "Name": "[variables('computeNsgName')]"
+        },
+        "webDefaultTag": {
+          "Name": "[variables('webNsgName')]"
+        },
+        "dataDefaultTag": {
+          "Name": "[variables('dataNsgName')]"
+        },
+        "databricksDefaultTag": {
+          "Name": "[variables('databricksNsgName')]"
+        }
+      },
+      "resources": [
+        {
+          "type": "Microsoft.Network/networkSecurityGroups",
+          "apiVersion": "2020-11-01",
+          "name": "[variables('computeNsgName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('computeDefaultTag'), parameters('combineTags'))]",
+          "properties": {
+            "securityRules": []
+          }
+        },
+        {
+          "type": "Microsoft.Network/networkSecurityGroups",
+          "apiVersion": "2020-11-01",
+          "name": "[variables('webNsgName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('webDefaultTag'), parameters('combineTags'))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Network/networkSecurityGroups', variables('computeNsgName'))]"
+          ],
+          "properties": {
+            "securityRules": []
+          }
+        },
+        {
+          "type": "Microsoft.Network/networkSecurityGroups",
+          "apiVersion": "2020-11-01",
+          "name": "[variables('dataNsgName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('dataDefaultTag'), parameters('combineTags'))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Network/networkSecurityGroups', variables('webNsgName'))]"
+          ],
+          "properties": {
+            "securityRules": []
+          }
+        },
+        {
+          "type": "Microsoft.Network/networkSecurityGroups",
+          "apiVersion": "2020-11-01",
+          "name": "[variables('databricksNsgName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('databricksDefaultTag'), parameters('combineTags'))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Network/networkSecurityGroups', variables('dataNsgName'))]"
+          ],
+          "properties": {
+            "securityRules": []
+          }
+        }
+      ],
+      "outputs": {
+        "computeNsgId": {
+          "type": "string",
+          "value": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('computeNsgName'))]"
+        },
+        "webNsgId": {
+          "type": "string",
+          "value": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('webNsgName'))]"
+        },
+        "dataNsgId": {
+          "type": "string",
+          "value": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('dataNsgName'))]"
+        },
+        "databricksNsgId": {
+          "type": "string",
+          "value": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('databricksNsgName'))]"
+        }
+      }
+    },
+    "resourceGroup": "network_Rg",
+    "parameters": {
+      "projectCode": {
+        "value": "[parameters('projectCode_assign')]"
+      },
+      "environment": {
+        "value": "[parameters('environment_assign')]"
+      },
+      "combineTags": {
+        "value": "[parameters('combineTags_assign')]"
+      }
+    }
+  },
+  "type": "Microsoft.Blueprint/blueprints/artifacts",
+  "name": "network_security_group"
+}

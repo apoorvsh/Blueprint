@@ -1,0 +1,435 @@
+{
+  "kind": "template",
+  "type": "Microsoft.Blueprint/blueprints/artifacts",
+  "properties": {
+    "displayName": "SQL Server VM - Single Instance Internal Analytics Deployment",
+    "description": "",
+    "dependsOn": [],
+    "template": {
+      "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "updateSQLVMConfiguration": {
+          "type": "bool",
+          "metadata": {
+            "displayName": "Required: Conditional Deployment for SQL VM",
+            "description": "Required - Select TRUE to deploy and update the SQL VM configuration, Select FALSE to bypass any updates"
+          }
+        },
+        "resourceTags": {
+          "type": "object"
+        },
+        "localBU": {
+          "type": "string",
+          "metadata": {
+            "displayName": "Prefix for the resource names deployed in this template"
+          }
+        },
+        "VNetResourceGroupName": {
+          "type": "string"
+        },
+        "VirtualNetworkName": {
+          "type": "string",
+          "metadata": {
+            "displayName": "VNet for VNet Endpoint Rules"
+          }
+        },
+        "SubnetName": {
+          "type": "string",
+          "metadata": {
+            "displayName": "Subnet for VNet Endpoint Rules"
+          }
+        },
+        "vmAdministratorLogin": {
+          "type": "securestring",
+          "metadata": {
+            "description": "The administrator username of the Windows Server."
+          }
+        },
+        "vmAdministratorPassword": {
+          "type": "securestring",
+          "metadata": {
+            "description": "The administrator password of the Windows Server."
+          }
+        },
+        "monitoringApproach": {
+          "type": "string",
+          "metadata": {
+            "description": "Organizational monitoring approach. For more info: https://docs.microsoft.com/en-us/azure/azure-monitor/platform/design-logs-deployment#important-considerations-for-an-access-control-strategy"
+          }
+        },
+        "decentralizedLogAnalytics_workspaceId": {
+          "type": "string",
+          "metadata": {
+            "description": "ResourceID of the Decentralized of Functional approach Log Analytics workspace in which resource logs should be saved."
+          }
+        },
+        "centralizedLogAnalytics_workspaceId": {
+          "type": "string",
+          "metadata": {
+            "displayName": "Log Analytics Workspace Id for all auditing and diagnostics",
+            "description": "Specifies the Log Analytics Workspace Resource ID that should be used for auditing and diagnostics."
+          },
+          "allowedValues": []
+        },
+        "deploymentEnvironment": {
+          "type": "string",
+          "metadata": {
+            "description": "Deployment environment. Production, QA & Development provide enhanced security and monitoring. Sanbox is meant for POC and short lived exploration only.  See the environment mapping to understand more details."
+          }
+        },
+        "backupStorageName": {
+          "type": "string"
+        },
+        "sqlDataDisksCount": {
+          "type": "int"
+        },
+        "sqlLogDisksCount": {
+          "type": "int"
+        }
+      },
+      "variables": {
+        //"vmSqlName": "[toLower(concat('fmz','-',parameters('deploymentEnvironment'),'-wfe-',parameters('localBU'), '-sqlvm'))]",
+        //"vmSqlName": "[concat(toUpper(substring(resourceGroup().location, sub(length(resourceGroup().location), 2), 2)), '-', parameters('localBU'), variables('environmentConfig')[parameters('deploymentEnvironment')].deploymentEnvironment, 'sqlvm01P')]",
+        "vmSqlName": "[concat(toUpper(substring(resourceGroup().location, sub(length(resourceGroup().location), 2), 2)), '-','AZR','-', parameters('localBU'),'Sql01',variables('environmentConfig')[parameters('deploymentEnvironment')].deploymentEnvironment)]",
+        "computerName": "[toLower(concat('sql','-','vm01',variables('environmentConfig')[parameters('deploymentEnvironment')].deploymentEnvironment))]",
+        "vmNicName": "[toLower(concat(variables('vmSqlName'),'-nic'))]",
+        "sqlDataDisksCount": "[parameters('sqlDataDisksCount')]",
+        "sqlLogDisksCount": "[parameters('sqlLogDisksCount')]",
+        "dataDiskSize": 2048,
+        "vmSize": "Standard_E4ds_v4",
+        //"vmSize": "Standard_D2s_v3",
+        "subnetId": "[resourceId(parameters('VNetResourceGroupName'), 'Microsoft.Network/virtualNetworks/subnets', parameters('VirtualNetworkName'), parameters('SubnetName'))]",
+        "workspaceId": "[if(equals(parameters('monitoringApproach'), 'Decentralized'), parameters('decentralizedLogAnalytics_workspaceId'),parameters('centralizedLogAnalytics_workspaceId'))]",
+        "storageBlobDataContributorRoleID": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+        "dataDisksLuns": "[array(range(0 ,variables('sqlDataDisksCount')))]",
+        "logDisksLuns": "[array(range(variables('sqlDataDisksCount'), variables('sqlLogDisksCount')))]",
+        "environmentConfig": {
+          "p": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "deploymentEnvironment": "P"
+          },
+          "d": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "deploymentEnvironment": "D"
+          },
+          "s": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "deploymentEnvironment": "S"
+          },
+          "x": {
+            "AdvancedSecurity": "No",
+            "diagnostics": "No",
+            "deploymentEnvironment": "T"
+          },
+          "Dr": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "deploymentEnvironment": "D"
+          },
+          "q": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "deploymentEnvironment": "Q"
+          }
+        }
+      },
+      "resources": [
+        {
+          "apiVersion": "2019-05-01",
+          "name": "pid-bcd6fdf3-b0d0-5123-b5c2-4db36514dd26",
+          "type": "Microsoft.Resources/deployments",
+          "properties": {
+            "mode": "Incremental",
+            "template": {
+              "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+              "contentVersion": "1.0.0.0",
+              "resources": []
+            }
+          }
+        },
+        {
+          "apiVersion": "2020-05-01",
+          "type": "Microsoft.Network/networkInterfaces",
+          "name": "[variables('vmNicName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[parameters('resourceTags')]",
+          "dependsOn": [],
+          "properties": {
+            "ipConfigurations": [
+              {
+                "name": "ipcongig",
+                "properties": {
+                  "privateIPAllocationMethod": "Dynamic",
+                  "subnet": {
+                    "id": "[variables('subnetId')]"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "condition": "[parameters('updateSQLVMConfiguration')]",
+          "apiVersion": "2020-06-01",
+          "type": "Microsoft.Compute/virtualMachines",
+          "name": "[variables('vmSqlName')]",
+          "location": "[resourceGroup().location]",
+          "identity": {
+            "type": "SystemAssigned"
+          },
+          "tags": "[parameters('resourceTags')]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Network/networkInterfaces/', variables('vmNicName'))]"
+          ],
+          "properties": {
+            "hardwareProfile": {
+              "vmSize": "[variables('vmSize')]"
+            },
+            "osProfile": {
+              "computerName": "[variables('computerName')]",
+              "adminUsername": "[parameters('vmAdministratorLogin')]",
+              "adminPassword": "[parameters('vmAdministratorPassword')]",
+              "windowsConfiguration": {
+                "enableAutomaticUpdates": true,
+                "provisionVmAgent": true
+              }
+            },
+            "storageProfile": {
+              "imageReference": {
+                "publisher": "MicrosoftSQLServer",
+                "offer": "sql2022-ws2022",
+                "sku": "enterprise-gen2",
+                "version": "latest"
+              },
+              "osDisk": {
+                "name": "[concat(variables('vmSqlName'),'_OSDisk')]",
+                "caching": "ReadWrite",
+                "createOption": "FromImage",
+                "managedDisk": {
+                  "storageAccountType": "Premium_LRS"
+                }
+              },
+              "copy": [
+                {
+                  "name": "dataDisks",
+                  "count": "[add(variables('sqlDataDisksCount'), variables('sqlLogDisksCount'))]",
+                  "input": {
+                    "caching": "[if(greaterOrEquals(copyIndex('dataDisks'), variables('sqlDataDisksCount')) ,'None', 'ReadOnly' )]",
+                    "diskSizeGB": "[variables('dataDiskSize')]",
+                    "lun": "[copyIndex('dataDisks')]",
+                    "name": "[concat(variables('vmSqlName'), '_datadisk', copyIndex('dataDisks'))]",
+                    "createOption": "Empty",
+                    "writeAcceleratorEnabled": false
+                  }
+                }
+              ]
+            },
+            "networkProfile": {
+              "networkInterfaces": [
+                {
+                  "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('vmNicName'))]"
+                }
+              ]
+            },
+            "diagnosticsProfile": {
+              "bootDiagnostics": {
+                "enabled": true
+              }
+            }
+          },
+          "resources": [
+            {
+              "condition": "[parameters('updateSQLVMConfiguration')]",
+              "type": "extensions",
+              "name": "[concat('Microsoft.EnterpriseCloud.Monitoring')]",
+              "apiVersion": "2015-06-15",
+              "location": "[resourceGroup().location]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines/', variables('vmSqlName'))]"
+              ],
+              "properties": {
+                "publisher": "Microsoft.EnterpriseCloud.Monitoring",
+                "type": "MicrosoftMonitoringAgent",
+                "typeHandlerVersion": "1.0",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                  "workspaceId": "[reference(variables('workspaceId'), '2015-03-20').customerId]"
+                },
+                "protectedSettings": {
+                  "workspaceKey": "[listKeys(variables('workspaceId'), '2015-03-20').primarySharedKey]"
+                }
+              }
+            },
+            /*{
+              "type": "providers/serverVulnerabilityAssessments",
+              "name": "Microsoft.Security/default",
+              "apiVersion": "2020-01-01",
+              "dependsOn": [
+                "[concat('Microsoft.Compute/virtualMachines/', variables('vmSqlName'), copyIndex())]",
+                "[concat('Microsoft.EnterpriseCloud.Monitoring',copyIndex())]",
+                "[concat('DependencyAgent', copyIndex())]",
+                "[concat('AzurePolicyforWindows', copyIndex())]"
+              ]
+            },*/
+            {
+              "condition": "[parameters('updateSQLVMConfiguration')]",
+              "name": "[concat('DependencyAgent')]",
+              "type": "extensions",
+              "location": "[resourceGroup().location]",
+              "apiVersion": "2018-06-01",
+              "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines/', variables('vmSqlName'))]",
+                "[concat('Microsoft.EnterpriseCloud.Monitoring')]"
+              ],
+              "properties": {
+                "publisher": "Microsoft.Azure.Monitoring.DependencyAgent",
+                "type": "DependencyAgentWindows",
+                "typeHandlerVersion": "9.10",
+                "autoUpgradeMinorVersion": true
+              }
+            },
+            {
+              "condition": "[parameters('updateSQLVMConfiguration')]",
+              "apiVersion": "2019-07-01",
+              "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines/', variables('vmSqlName'))]",
+                "[concat('Microsoft.EnterpriseCloud.Monitoring')]",
+                "[concat('DependencyAgent')]"
+              ],
+              "name": "[concat('AzurePolicyforWindows')]",
+              "type": "extensions",
+              "location": "[resourceGroup().location]",
+              "properties": {
+                "publisher": "Microsoft.GuestConfiguration",
+                "type": "ConfigurationforWindows",
+                "typeHandlerVersion": "1.1",
+                "autoUpgradeMinorVersion": true,
+                "settings": {},
+                "protectedSettings": {}
+              }
+            }
+          ]
+        },
+        {
+          "condition": "[parameters('updateSQLVMConfiguration')]",
+          "type": "Microsoft.SqlVirtualMachine/SqlVirtualMachines",
+          "apiVersion": "2017-03-01-preview",
+          "tags": "[parameters('resourceTags')]",
+          "name": "[variables('vmSqlName')]",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Compute/virtualMachines/', variables('vmSqlName'))]"
+          ],
+          "properties": {
+            "virtualMachineResourceId": "[resourceId('Microsoft.Compute/virtualMachines', variables('vmSqlName'))]",
+            "sqlManagement": "Full",
+            "SqlServerLicenseType": "AHUB",
+            "StorageConfigurationSettings": {
+              "DiskConfigurationType": "NEW",
+              "StorageWorkloadType": "DW",
+              "SQLDataSettings": {
+                "LUNs": "[variables('dataDisksLUNs')]",
+                "DefaultFilePath": "F:\\SQLData"
+              },
+              "SQLLogSettings": {
+                "Luns": "[variables('logDisksLUNs')]",
+                "DefaultFilePath": "G:\\SQLLog"
+              },
+              "SQLTempDbSettings": {
+                "DefaultFilePath": "D:\\SQLTemp"
+              }
+            }
+          }
+        } /*,
+        {
+          "apiVersion": "2019-05-01",
+          "name": "[concat('stageStorageRoleDeploymentResource',copyIndex())]",
+          "type": "Microsoft.Resources/deployments",
+          "resourceGroup": "[resourceGroup().name]",
+          "copy": {
+            "name": "foo3",
+            "count": "[variables('vmScaleCount')]"
+          },
+          "dependsOn": [
+            "[concat(variables('vmSqlName'),copyIndex())]"
+          ],
+          "properties": {
+            "mode": "Incremental",
+            "template": {
+              "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+              "contentVersion": "1.0.0.0",
+              "parameters": {},
+              "variables": {},
+              "resources": [
+                {
+                  "type": "Microsoft.Storage/storageAccounts/providers/roleAssignments",
+                  "apiVersion": "2018-09-01-preview",
+                  "name": "[concat(parameters('backupStorageName'), '/Microsoft.Authorization/', guid(concat(resourceGroup().id, '/', variables('storageBlobDataContributorRoleID'), '/', concat(variables('vmSqlName'),copyIndex()), '/', guid(concat(parameters('backupStorageName'),concat(variables('vmSqlName'),copyIndex()))))))]",
+                  "location": "[resourceGroup().location]",
+                  "properties": {
+                    "roleDefinitionId": "[resourceId('Microsoft.Authorization/roleDefinitions', variables('storageBlobDataContributorRoleID'))]",
+                    "principalId": "[reference(concat('Microsoft.Compute/virtualMachines/', concat(variables('vmSqlName'),copyIndex())), '2015-06-15', 'Full').identity.principalId]",
+                    "principalType": "ServicePrincipal"
+                  }
+                }
+              ]
+            }
+          }
+        }*/
+      ],
+      "outputs": {}
+    },
+    "resourceGroup": "DataPlatformServicesRG",
+    "parameters": {
+      "resourceTags": {
+        "value": "[parameters('resourceTags')]"
+      },
+      "localBU": {
+        "value": "[parameters('resourceNamePrefix')]"
+      },
+      "vmAdministratorLogin": {
+        "value": "[parameters('azureVM_adminUser')]"
+      },
+      "vmAdministratorPassword": {
+        "value": "[parameters('azureVM_adminPassword')]"
+      },
+      "VNetResourceGroupName": {
+        "value": "[parameters('ExistingVNetRGName')]"
+      },
+      "VirtualNetworkName": {
+        "value": "[parameters('ExistingVNetName')]"
+      },
+      "SubnetName": {
+        "value": "[parameters('ExistingVNetDataSNName')]"
+      },
+      "monitoringApproach": {
+        "value": "[parameters('monitoringApproach')]"
+      },
+      "decentralizedLogAnalytics_workspaceId": {
+        "value": "[parameters('decentralizedLogAnalytics_workspaceId')]"
+      },
+      "centralizedLogAnalytics_workspaceId": {
+        "value": "[parameters('centralizedLogAnalytics_workspaceId')]"
+      },
+      "deploymentEnvironment": {
+        "value": "[parameters('deploymentEnvironment')]"
+      },
+      "backupStorageName": {
+        "value": "[parameters('backupStorageAccountName')]"
+      },
+      "sqlDataDisksCount": {
+        "value": "[parameters('sqlDataDisksCount')]"
+      },
+      "sqlLogDisksCount": {
+        "value": "[parameters('sqlLogDisksCount')]"
+      },
+      "updateSQLVMConfiguration": {
+        "value": "[parameters('updateSQLVMConfiguration')]"
+      }
+    }
+  }
+}

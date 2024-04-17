@@ -1,0 +1,291 @@
+{
+  "kind": "template",
+  "properties": {
+    "displayName": "Deploy Subnets in existingVnet",
+    "description": "Deploy Subnets in existingVnet and attacing Network security group and Route table to subnets",
+    "dependsOn": ["network_security_group", "route_table"],
+    "template": {
+      "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "projectCode": {
+          "type": "string",
+          "metadata": {
+            "description": "Project Code"
+          }
+        },
+        "environment": {
+          "type": "string",
+          "metadata": {
+            "description": "Environment of Project"
+          }
+        },
+        "existingVnetName": {
+          "type": "string",
+          "metadata": {
+            "description": "Existing Vnet Name"
+          }
+        },
+        "webSubnetAddressPrefix": {
+          "type": "string",
+          "metadata": {
+            "description": "Web Subnet Address Space"
+          }
+        },
+        "dataSubnetAddressPrefix": {
+          "type": "string",
+          "metadata": {
+            "description": "Data Subnet Address Space"
+          }
+        },
+        "computeSubnetAddressPrefix": {
+          "type": "string",
+          "metadata": {
+            "description": "Compute Subnet Address Space"
+          }
+        },
+        "databricksHostSubnetAddressPrefix": {
+          "type": "string",
+          "metadata": {
+            "description": "Databricks Host Subnet Address Space"
+          }
+        },
+        "databricksContainerSubnetAddressPrefix": {
+          "type": "string",
+          "metadata": {
+            "description": "Databricks Container Subnet Address Space"
+          }
+        },
+        "webNsgRef": {
+          "type": "string",
+          "metadata": {
+            "discription": "Referencing Web Nsg Id"
+          }
+        },
+        "computeNsgRef": {
+          "type": "string",
+          "metadata": {
+            "discription": "Referencing Compute Nsg Id"
+          }
+        },
+        "databricksNsgRef": {
+          "type": "string",
+          "metadata": {
+            "discription": "Referencing databricks Nsg Id"
+          }
+        },
+        "dataNsgRef": {
+          "type": "string",
+          "metadata": {
+            "discription": "Referencing Data Nsg Id"
+          }
+        },
+        "databricksHostRouteRef": {
+          "type": "string",
+          "metadata": {
+            "discription": "Referencing Databricks Host Route Id"
+          }
+        },
+        "databricksContainerRouteRef": {
+          "type": "string",
+          "metadata": {
+            "discription": "Referencing Databricks Container Route Id"
+          }
+        },
+        "computeRouteRef": {
+          "type": "string",
+          "metadata": {
+            "discription": "Referencing Compute Route Id"
+          }
+        }
+      },
+      "variables": {
+        "webSubnetName": "[toLower(concat('sub-',parameters('projectCode'),'-', parameters('environment'),'-web01'))]",
+        "dataSubnetName": "[toLower(concat('sub-',parameters('projectCode'),'-', parameters('environment'),'-data01'))]",
+        "computeSubnetName": "[toLower(concat('sub-',parameters('projectCode'),'-', parameters('environment'),'-compute01'))]",
+        "databricksHostSubnetName": "[toLower(concat('sub-',parameters('projectCode'),'-', parameters('environment'),'-dbwhost01'))]",
+        "databricksContainerSubnetName": "[toLower(concat('sub-',parameters('projectCode'),'-', parameters('environment'),'-dbwcontainer01'))]"
+      },
+      "resources": [
+        {
+          "type": "Microsoft.Network/virtualNetworks/subnets",
+          "apiVersion": "2018-10-01",
+          "name": "[concat(parameters('existingVnetName'),'/',variables('webSubnetName'))]",
+          "properties": {
+            "addressPrefix": "[parameters('webSubnetAddressPrefix')]",
+            "networkSecurityGroup": {
+              "id": "[parameters('webNsgRef')]"
+            }
+          }
+        },
+        {
+          "type": "Microsoft.Network/virtualNetworks/subnets",
+          "apiVersion": "2018-10-01",
+          "name": "[concat(parameters('existingVnetName'),'/',variables('dataSubnetName'))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('existingVnetName'), variables('webSubnetName'))]"
+          ],
+          "properties": {
+            "addressPrefix": "[parameters('dataSubnetAddressPrefix')]",
+            "networkSecurityGroup": {
+              "id": "[parameters('dataNsgRef')]"
+            }
+          }
+        },
+        {
+          "type": "Microsoft.Network/virtualNetworks/subnets",
+          "apiVersion": "2018-10-01",
+          "name": "[concat(parameters('existingVnetName'),'/',variables('computeSubnetName'))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('existingVnetName'), variables('dataSubnetName'))]"
+          ],
+          "properties": {
+            "addressPrefix": "[parameters('computeSubnetAddressPrefix')]",
+            "networkSecurityGroup": {
+              "id": "[parameters('computeNsgRef')]"
+            },
+            "routeTable": {
+              "id": "[parameters('computeRouteRef')]"
+            }
+          }
+        },
+        {
+          "type": "Microsoft.Network/virtualNetworks/subnets",
+          "apiVersion": "2018-10-01",
+          "name": "[concat(parameters('existingVnetName'),'/',variables('databricksHostSubnetName'))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('existingVnetName'),variables('computeSubnetName'))]"
+          ],
+          "properties": {
+            "addressPrefix": "[parameters('databricksHostSubnetAddressPrefix')]",
+            "networkSecurityGroup": {
+              "id": "[parameters('databricksNsgRef')]"
+            },
+            "routeTable": {
+              "id": "[parameters('databricksHostRouteRef')]"
+            },
+            "delegations": [
+              {
+                "name": "databricks-del-public",
+                "properties": {
+                  "serviceName": "Microsoft.Databricks/workspaces"
+                }
+              }
+            ],
+            "serviceEndpoints": [
+              {
+                "service": "Microsoft.Storage"
+              }
+            ]
+          }
+        },
+        {
+          "type": "Microsoft.Network/virtualNetworks/subnets",
+          "apiVersion": "2018-10-01",
+          "name": "[concat(parameters('existingVnetName'),'/',variables('databricksContainerSubnetName'))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('existingVnetName'),variables('databricksHostSubnetName'))]"
+          ],
+          "properties": {
+            "addressPrefix": "[parameters('databricksContainerSubnetAddressPrefix')]",
+            "networkSecurityGroup": {
+              "id": "[parameters('databricksNsgRef')]"
+            },
+            "routeTable": {
+              "id": "[parameters('databricksContainerRouteRef')]"
+            },
+            "delegations": [
+              {
+                "name": "databricks-del-private",
+                "properties": {
+                  "serviceName": "Microsoft.Databricks/workspaces"
+                }
+              }
+            ],
+            "serviceEndpoints": [
+              {
+                "service": "Microsoft.Storage"
+              }
+            ]
+          }
+        }
+      ],
+      "outputs": {
+        "computeSubnetId": {
+          "type": "string",
+          "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets',parameters('existingVnetName') ,variables('computeSubnetName'))]"
+        },
+        "dataSubnetId": {
+          "type": "string",
+          "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets',parameters('existingVnetName') ,variables('dataSubnetName'))]"
+        },
+        "webSubnetId": {
+          "type": "string",
+          "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets',parameters('existingVnetName') ,variables('webSubnetName'))]"
+        },
+        "databricksHostSubnetName": {
+          "type": "string",
+          "value": "[variables('databricksHostSubnetName')]"
+        },
+        "databricksContainerSubnetName": {
+          "type": "string",
+          "value": "[variables('databricksContainerSubnetName')]"
+        },
+        "vnetId": {
+          "type": "string",
+          "value": "[resourceId('Microsoft.Network/virtualNetworks', parameters('existingVnetName'))]"
+        }
+      }
+    },
+    "resourceGroup": "network_Rg",
+    "parameters": {
+      "projectCode": {
+        "value": "[parameters('projectCode_assign')]"
+      },
+      "environment": {
+        "value": "[parameters('environment_assign')]"
+      },
+      "existingVnetName": {
+        "value": "[parameters('existingVnetName_assign')]"
+      },
+      "webSubnetAddressPrefix": {
+        "value": "[parameters('webSubnetAddressPrefix_assign')]"
+      },
+      "dataSubnetAddressPrefix": {
+        "value": "[parameters('dataSubnetAddressPrefix_assign')]"
+      },
+      "computeSubnetAddressPrefix": {
+        "value": "[parameters('computeSubnetAddressPrefix_assign')]"
+      },
+      "databricksHostSubnetAddressPrefix": {
+        "value": "[parameters('databricksHostSubnetAddressPrefix_assign')]"
+      },
+      "databricksContainerSubnetAddressPrefix": {
+        "value": "[parameters('databricksContainerSubnetAddressPrefix_assign')]"
+      },
+      "webNsgRef": {
+        "value": "[artifacts('network_security_group').outputs.webNsgId]"
+      },
+      "computeNsgRef": {
+        "value": "[artifacts('network_security_group').outputs.computeNsgId]"
+      },
+      "dataNsgRef": {
+        "value": "[artifacts('network_security_group').outputs.dataNsgId]"
+      },
+      "databricksNsgRef": {
+        "value": "[artifacts('network_security_group').outputs.databricksNsgId]"
+      },
+      "databricksHostRouteRef": {
+        "value": "[artifacts('route_table').outputs.databricksHostRouteId]"
+      },
+      "databricksContainerRouteRef": {
+        "value": "[artifacts('route_table').outputs.databricksContainerRouteId]"
+      },
+      "computeRouteRef": {
+        "value": "[artifacts('route_table').outputs.computeRouteId]"
+      }
+    }
+  },
+  "type": "Microsoft.Blueprint/blueprints/artifacts",
+  "name": "subnets"
+}

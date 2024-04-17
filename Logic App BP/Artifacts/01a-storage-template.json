@@ -1,0 +1,800 @@
+{
+  "kind": "template",
+  "type": "Microsoft.Blueprint/blueprints/artifacts",
+  "properties": {
+    "displayName": "Storage Account -  Storage for Azure App Services",
+    "description": "",
+    "dependsOn": [],
+    "template": {
+      "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "resourceTags": {
+          "type": "object"
+        },
+        "localBU": {
+          "type": "string",
+          "metadata": {
+            "displayName": "BU for the resource names deployed in this template"
+          }
+        },
+        "storageSLARequirement": {
+          "type": "string",
+          "metadata": {
+            "description": "Storage account replication, for more info see 'https://docs.microsoft.com/en-us/azure/storage/common/storage-redundancy'."
+          }
+        },
+        "monitoringApproach": {
+          "type": "string",
+          "metadata": {
+            "description": "Organizational monitoring approach. For more info: https://docs.microsoft.com/en-us/azure/azure-monitor/platform/design-logs-deployment#important-considerations-for-an-access-control-strategy"
+          }
+        },
+        "decentralizedLogAnalytics_workspaceId": {
+          "type": "string",
+          "metadata": {
+            "description": "ResourceID of the Decentralized of Functional approach Log Analytics workspace in which resource logs should be saved."
+          }
+        },
+        "centralizedLogAnalytics_workspaceId": {
+          "type": "string",
+          "metadata": {
+            "displayName": "Log Analytics Workspace Id for all auditing and diagnostics",
+            "description": "Specifies the Log Analytics Workspace Resource ID that should be used for auditing and diagnostics."
+          },
+          "allowedValues": []
+        },
+        "deploymentEnvironment": {
+          "type": "string",
+          "metadata": {
+            "description": "Deployment environment. Production, QA & Development provide enhanced security and monitoring. Sanbox is meant for POC and short lived exploration only.  See the environment mapping to understand more details."
+          }
+        },
+        "monitorLogRetention": {
+          "type": "int",
+          "metadata": {
+            "displayName": "Metrics & Log Retention (days)",
+            "description": "The retention is days for auditing, diagnostic and metric logs per your organizations requirements. Default = 180 days"
+          }
+        },
+        "networkAccessApproach": {
+          "type": "string",
+          "metadata": {
+            "displayName": "Azure Networking Access Approach",
+            "description": "Select your Organizational networking access approach. For public endpoint accessibility, choose 'Public' or 'Both'. For complete private connectivity with private endpoints only select 'Private'."
+          }
+        },
+        "networkArchitectureApproach": {
+          "type": "string",
+          "metadata": {
+            "description": "Conditional control for Private DNS Services"
+          }
+        },
+        "VNetResourceGroupName": {
+          "type": "string"
+        },
+        "VirtualNetworkName": {
+          "type": "string",
+          "metadata": {
+            "displayName": "VNet for VNet Endpoint Rules"
+          }
+        },
+        "SubnetName": {
+          "type": "string",
+          "metadata": {
+            "displayName": "Subnet for VNet Endpoint Rules"
+          }
+        },
+        "ExistingPrivateDNSId_blob": {
+          "type": "string",
+          "metadata": {
+            "description": "If you are leveraging a Hub and Spoke networking approach with private DNS zones and DNS routing, those zones should be created and associated with the hub network"
+          }
+        },
+        "ExistingPrivateDNSId_file": {
+          "type": "string",
+          "metadata": {
+            "description": "If you are leveraging a Hub and Spoke networking approach with private DNS zones and DNS routing, those zones should be created and associated with the hub network"
+          }
+        },
+        "ExistingPrivateDNSId_table": {
+          "type": "string",
+          "metadata": {
+            "description": "If you are leveraging a Hub and Spoke networking approach with private DNS zones and DNS routing, those zones should be created and associated with the hub network"
+          }
+        },
+        "ExistingPrivateDNSId_queue": {
+          "type": "string",
+          "metadata": {
+            "description": "If you are leveraging a Hub and Spoke networking approach with private DNS zones and DNS routing, those zones should be created and associated with the hub network"
+          }
+        },
+        "identityName": {
+          "type": "string"
+        },
+        "identityRGName": {
+          "type": "string"
+        },
+        "PrivateDNSIntegration": {
+          "type": "bool",
+          "metadata": {
+            "displayName": "Optional: Integrate all private services with existing or new private DNS zones? (Recommended)",
+            "description": "If you are leveraging a Hub and Spoke networking approach with private DNS zones and DNS routing, you can register DNS entries with existing zones. This DNS Zone is for the private endpoint configurations. "
+          }
+        }
+      },
+      "variables": {
+        /*Organize your cloud assets to support governance, operational management, and accounting requirements. 
+        Well-defined naming and metadata tagging conventions help to quickly locate and manage resources. 
+        These conventions also help associate cloud usage costs with business teams via chargeback and showback accounting mechanisms.*/
+        "storageAccountName": "[toLower(concat(parameters('deploymentEnvironment'),substring(resourceGroup().location, 0, 1),last(resourceGroup().location),parameters('localBU'),'appsa01av'))]",
+        "storageAccountKind": "StorageV2",
+        "webAppName": "[toLower(concat(parameters('deploymentEnvironment'),substring(resourceGroup().location, 0, 1),last(resourceGroup().location),'-',parameters('localBU'),'-app01ab'))]",
+        "webAppName_ps": "[toLower(concat(parameters('deploymentEnvironment'),substring(resourceGroup().location, 0, 1),last(resourceGroup().location),'-',parameters('localBU'),'-app01ac'))]",
+        "blobStorageAccountId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+        "blobServicePrimaryEndpoint": "[concat(variables('storageAccountName'), variables('blobPublicDNSZoneForwarder'))]",
+        "blobStorageAccountPrivateEndpointId": "[resourceId('Microsoft.Network/privateEndpoints', variables('blobStorageAccountPrivateEndpointName'))]",
+        "blobStorageAccountPrivateEndpointGroupName": "blob",
+        "privateEndpointName": "[concat(variables('storageAccountName'),'link')]",
+        "blobStorageAccountPrivateEndpointName": "[concat(variables('privateEndpointName'),'blob')]",
+        "blobPublicDNSZoneForwarder": "[concat('.blob.', environment().suffixes.storage)]",
+        "blobPrivateDnsZoneName": "[concat('privatelink', variables('blobPublicDNSZoneForwarder'))]",
+        "blobPrivateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', variables('blobPrivateDnsZoneName'))]",
+        "blobPrivateDnsZoneGroup": "[concat(variables('blobStorageAccountPrivateEndpointName'),'/', variables('blobStorageAccountPrivateEndpointGroupName'), 'PrivateDnsZoneGroup')]",
+        "fileStorageAccountPrivateEndpointId": "[resourceId('Microsoft.Network/privateEndpoints', variables('fileStorageAccountPrivateEndpointName'))]",
+        "fileStorageAccountPrivateEndpointGroupName": "file",
+        "fileStorageAccountPrivateEndpointName": "[concat(variables('privateEndpointName'),'file')]",
+        "filePublicDNSZoneForwarder": "[concat('.file.', environment().suffixes.storage)]",
+        "filePrivateDnsZoneName": "[concat('privatelink', variables('filePublicDNSZoneForwarder'))]",
+        "filePrivateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', variables('filePrivateDnsZoneName'))]",
+        "filePrivateDnsZoneGroup": "[concat(variables('fileStorageAccountPrivateEndpointName'),'/', variables('fileStorageAccountPrivateEndpointGroupName'), 'PrivateDnsZoneGroup')]",
+        "tableStorageAccountPrivateEndpointId": "[resourceId('Microsoft.Network/privateEndpoints', variables('tableStorageAccountPrivateEndpointName'))]",
+        "tableStorageAccountPrivateEndpointGroupName": "table",
+        "tableStorageAccountPrivateEndpointName": "[concat(variables('privateEndpointName'),'table')]",
+        "tablePublicDNSZoneForwarder": "[concat('.table.', environment().suffixes.storage)]",
+        "tablePrivateDnsZoneName": "[concat('privatelink', variables('tablePublicDNSZoneForwarder'))]",
+        "tablePrivateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', variables('tablePrivateDnsZoneName'))]",
+        "tablePrivateDnsZoneGroup": "[concat(variables('tableStorageAccountPrivateEndpointName'),'/', variables('tableStorageAccountPrivateEndpointGroupName'), 'PrivateDnsZoneGroup')]",
+        "queueStorageAccountPrivateEndpointId": "[resourceId('Microsoft.Network/privateEndpoints', variables('queueStorageAccountPrivateEndpointName'))]",
+        "queueStorageAccountPrivateEndpointGroupName": "queue",
+        "queueStorageAccountPrivateEndpointName": "[concat(variables('privateEndpointName'),'queue')]",
+        "queuePublicDNSZoneForwarder": "[concat('.queue.', environment().suffixes.storage)]",
+        "queuePrivateDnsZoneName": "[concat('privatelink', variables('queuePublicDNSZoneForwarder'))]",
+        "queuePrivateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', variables('queuePrivateDnsZoneName'))]",
+        "queuePrivateDnsZoneGroup": "[concat(variables('queueStorageAccountPrivateEndpointName'),'/', variables('queueStorageAccountPrivateEndpointGroupName'), 'PrivateDnsZoneGroup')]",
+        /*Azure Data Lake Storage Gen2 already supports 3x replication to guard against localized hardware failures. 
+        Other replication options, such as zone-redundant storage (ZRS) or geo-zone-redundant storage (GZRS), improve high availability. 
+        Geo-redundant storage (GRS) and read-access geo-redundant storage (RA-GRS) improve disaster recovery. 
+        For high availability, if there's a service interruption, the workload needs access to the latest data as quickly as possible. */
+        "storageAccountReplication": "[if(equals(parameters('storageSLARequirement'),'11 nines'), 'Standard_LRS', if(equals(parameters('storageSLARequirement'),'12 nines'), 'Standard_ZRS', if(equals(parameters('storageSLARequirement'),'16 nines'), 'Standard_GRS', if(equals(parameters('storageSLARequirement'),'16 nines & Read Access'),'Standard_RAGRS',if(equals(parameters('storageSLARequirement'),'16 nines & 12 nines failover'), 'Standard_GZRS',if(equals(parameters('storageSLARequirement'),'16 nines & 12 nines failover & Read Access'), 'Standard_RAGZRS', 'Standard_ZRS'))))))]",
+        "vnetId": "[resourceId(parameters('VNetResourceGroupName'),'Microsoft.Network/virtualNetworks', parameters('VirtualNetworkName'))]",
+        "subnetId": "[resourceId(parameters('VNetResourceGroupName'), 'Microsoft.Network/virtualNetworks/subnets', parameters('VirtualNetworkName'), parameters('SubnetName'))]",
+        "scriptName": "enableDiagnosticsScript",
+        "environmentConfig": {
+          "pr": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "advancedThreatProtectionEnabled": true
+          },
+          "p": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "advancedThreatProtectionEnabled": true
+          },
+          "pp": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "advancedThreatProtectionEnabled": true
+          },
+          "prpr": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "advancedThreatProtectionEnabled": true
+          },
+          "dv": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "advancedThreatProtectionEnabled": true
+          },
+          "uat": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "advancedThreatProtectionEnabled": true
+          },
+          "sb": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "advancedThreatProtectionEnabled": true
+          },
+          "dr": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "advancedThreatProtectionEnabled": true
+          },
+          "int": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "advancedThreatProtectionEnabled": true
+          }
+        },
+        "NetworkingApproachPrivateDnsZoneId": {
+          "Hub & Spoke": {
+            "blobPrivateDnsZoneIdReg": "[parameters('ExistingPrivateDNSId_blob')]",
+            "filePrivateDnsZoneIdReg": "[parameters('ExistingPrivateDNSId_file')]",
+            "tablePrivateDnsZoneIdReg": "[parameters('ExistingPrivateDNSId_table')]",
+            "queuePrivateDnsZoneIdReg": "[parameters('ExistingPrivateDNSId_queue')]"
+          },
+          "Federated": {
+            "blobPrivateDnsZoneIdReg": "[variables('blobPrivateDnsZoneId')]",
+            "filePrivateDnsZoneIdReg": "[variables('filePrivateDnsZoneId')]",
+            "tablePrivateDnsZoneIdReg": "[variables('tablePrivateDnsZoneId')]",
+            "queuePrivateDnsZoneIdReg": "[variables('queuePrivateDnsZoneId')]"
+          }
+        },
+        "networkAccessApproach": {
+          "Private": {
+            "PublicIP": false,
+            "PrivateEndpoint": true,
+            "PublicAccess": "Disabled"
+          },
+          "Both": {
+            "PublicIP": true,
+            "PrivateEndpoint": true,
+            "PublicAccess": "Enabled"
+          },
+          "Public": {
+            "PublicIP": true,
+            "PrivateEndpoint": false,
+            "PublicAccess": "Enabled"
+          }
+        }
+      },
+      "resources": [
+        {
+          "apiVersion": "2018-02-01",
+          "name": "pid-bcd6fdf3-b0d0-5123-b5c2-4db36514dd26",
+          "type": "Microsoft.Resources/deployments",
+          "properties": {
+            "mode": "Incremental",
+            "template": {
+              "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+              "contentVersion": "1.0.0.0",
+              "resources": []
+            }
+          }
+        },
+        {
+          "type": "Microsoft.Storage/storageAccounts",
+          "name": "[variables('storageAccountName')]",
+          "location": "[resourceGroup().location]",
+          "apiVersion": "2019-04-01",
+          "sku": {
+            "name": "[variables('storageAccountReplication')]"
+          },
+          "tags": "[parameters('resourceTags')]",
+          "kind": "[variables('storageAccountKind')]",
+          "properties": {
+            /*  i.Protect Data at Rest
+                Data-at-rest encryption refers to the encryption of data as it persists in storage, 
+              and addresses the security risks related to direct physical access of storage media.
+            */
+            "encryption": {
+              "services": {
+                "blob": {
+                  "enabled": true
+                },
+                "file": {
+                  "enabled": true
+                }
+              },
+              "keySource": "Microsoft.Storage",
+              "requireInfrastructureEncryption": true
+            },
+            "containerDeleteRetentionPolicy": {
+              "enabled": true,
+              "days": 180
+            },
+            //e.Avoid exposure to the Internet;f.Deploy Perimeter Networks;d.Secure Azure services in Virtual networks 
+            // **Exception - Required for Vulnerability Assessment for Synapse Dedicated Pool which pertains to h.Prevent, detect, and respond to threats
+            "networkAcls": {
+              "bypass": "Logging, Metrics, AzureServices",
+              "virtualNetworkRules": [
+                {
+                  "id": "[resourceId(parameters('VNetResourceGroupName'), 'Microsoft.Network/virtualNetworks/subnets', parameters('VirtualNetworkName'), parameters('SubnetName'))]",
+                  "action": "Allow"
+                }
+              ],
+              "defaultAction": "Deny"
+            },
+            "IsVersioningEnabled": true,
+            /*  j..Protect Data in Motion
+                Data is in transit or in flight when it moves from one location to another. 
+                This can be internally, on-premises or within Azure, or externally, such as across the Internet to an end user. 
+                Azure offers several mechanisms, including encryption, to keep data private in transit.
+            */
+            "supportsHttpsTrafficOnly": true,
+            "allowBlobPublicAccess": false,
+            "minimumTlsVersion": "TLS1_2"
+          },
+          "resources": [
+            {
+              "condition": "[variables('environmentConfig')[parameters('deploymentEnvironment')].advancedThreatProtectionEnabled]",
+              "type": "providers/advancedThreatProtectionSettings",
+              "name": "Microsoft.Security/current",
+              "apiVersion": "2017-08-01-preview",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]"
+              ],
+              "properties": {
+                "isEnabled": true
+              }
+            }
+          ]
+        },
+        {
+          "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+          "apiVersion": "2021-04-01",
+          "name": "[format('{0}/default/{1}', variables('storageAccountName'), toLower(variables('webAppName')))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]"
+          ]
+        },
+        {
+          "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+          "apiVersion": "2021-04-01",
+          "name": "[format('{0}/default/{1}', variables('storageAccountName'), toLower(variables('webAppName_ps')))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]"
+          ]
+        },
+        {
+          "condition": "[and(equals(parameters('networkArchitectureApproach'),'Federated'),variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint)]",
+          "type": "Microsoft.Network/privateDnsZones",
+          "apiVersion": "2018-09-01",
+          "name": "[variables('blobPrivateDnsZoneName')]",
+          "tags": "[parameters('resourceTags')]",
+          "location": "global",
+          "properties": {
+            "maxNumberOfRecordSets": 25000,
+            "maxNumberOfVirtualNetworkLinks": 1000,
+            "maxNumberOfVirtualNetworkLinksWithRegistration": 100
+          }
+        },
+        {
+          "condition": "[and(equals(parameters('networkArchitectureApproach'),'Federated'),variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint)]",
+          "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+          "apiVersion": "2018-09-01",
+          "name": "[concat(variables('blobPrivateDnsZoneName'), '/link_to_', toLower(parameters('virtualNetworkName')))]",
+          "tags": "[parameters('resourceTags')]",
+          "location": "global",
+          "dependsOn": [
+            "[variables('blobPrivateDnsZoneId')]"
+          ],
+          "properties": {
+            "registrationEnabled": false,
+            "virtualNetwork": {
+              "id": "[variables('vnetId')]"
+            }
+          }
+        },
+        /*  e.Avoid exposure to the Internet; d.Secure Azure services in Virtual networks; f.Deploy Perimeter Networks; g.Logically Segment Subnets; b.Adopt a Zero Trust approach
+            Cloud-scale analytics prescribed view is to use 
+            Azure private endpoints for all PaaS services and not use public IPs for all infrastructure as a service (IaaS) services.
+        */ {
+          "condition": "[variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint]",
+          "type": "Microsoft.Network/privateEndpoints",
+          "apiVersion": "2020-04-01",
+          "name": "[variables('blobStorageAccountPrivateEndpointName')]",
+          "tags": "[parameters('resourceTags')]",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[variables('blobStorageAccountId')]"
+          ],
+          "properties": {
+            "privateLinkServiceConnections": [
+              {
+                "name": "[variables('blobStorageAccountPrivateEndpointName')]",
+                "properties": {
+                  "privateLinkServiceId": "[variables('blobStorageAccountId')]",
+                  "groupIds": [
+                    "[variables('blobStorageAccountPrivateEndpointGroupName')]"
+                  ]
+                }
+              }
+            ],
+            "subnet": {
+              "id": "[variables('subnetId')]"
+            },
+            "customDnsConfigs": [
+              {
+                "fqdn": "[concat(variables('storageAccountName'), variables('blobPublicDNSZoneForwarder'))]"
+              }
+            ]
+          }
+        },
+        {
+          "condition": "[and(variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint,parameters('PrivateDNSIntegration'))]",
+          "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+          "apiVersion": "2020-03-01",
+          "name": "[variables('blobPrivateDnsZoneGroup')]",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[variables('blobPrivateDnsZoneId')]",
+            "[variables('blobStorageAccountPrivateEndpointId')]"
+          ],
+          "properties": {
+            "privateDnsZoneConfigs": [
+              {
+                "name": "dnsConfig",
+                "properties": {
+                  "privateDnsZoneId": "[variables('NetworkingApproachPrivateDnsZoneId')[parameters('networkArchitectureApproach')].blobPrivateDnsZoneIdReg]"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "condition": "[and(equals(parameters('networkArchitectureApproach'),'Federated'),variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint)]",
+          "type": "Microsoft.Network/privateDnsZones",
+          "apiVersion": "2018-09-01",
+          "name": "[variables('filePrivateDnsZoneName')]",
+          "tags": "[parameters('resourceTags')]",
+          "location": "global",
+          "properties": {
+            "maxNumberOfRecordSets": 25000,
+            "maxNumberOfVirtualNetworkLinks": 1000,
+            "maxNumberOfVirtualNetworkLinksWithRegistration": 100
+          }
+        },
+        {
+          "condition": "[and(equals(parameters('networkArchitectureApproach'),'Federated'),variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint)]",
+          "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+          "apiVersion": "2018-09-01",
+          "name": "[concat(variables('filePrivateDnsZoneName'), '/link_to_', toLower(parameters('virtualNetworkName')))]",
+          "tags": "[parameters('resourceTags')]",
+          "location": "global",
+          "dependsOn": [
+            "[variables('filePrivateDnsZoneId')]"
+          ],
+          "properties": {
+            "registrationEnabled": false,
+            "virtualNetwork": {
+              "id": "[variables('vnetId')]"
+            }
+          }
+        },
+        {
+          "condition": "[variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint]",
+          "type": "Microsoft.Network/privateEndpoints",
+          "apiVersion": "2020-04-01",
+          "name": "[variables('fileStorageAccountPrivateEndpointName')]",
+          "tags": "[parameters('resourceTags')]",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[variables('blobStorageAccountId')]"
+          ],
+          "properties": {
+            "privateLinkServiceConnections": [
+              {
+                "name": "[variables('fileStorageAccountPrivateEndpointName')]",
+                "properties": {
+                  "privateLinkServiceId": "[variables('blobStorageAccountId')]",
+                  "groupIds": [
+                    "[variables('fileStorageAccountPrivateEndpointGroupName')]"
+                  ]
+                }
+              }
+            ],
+            "subnet": {
+              "id": "[variables('subnetId')]"
+            },
+            "customDnsConfigs": [
+              {
+                "fqdn": "[concat(variables('storageAccountName'), variables('filePublicDNSZoneForwarder'))]"
+              }
+            ]
+          }
+        },
+        {
+          "condition": "[and(variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint,parameters('PrivateDNSIntegration'))]",
+          "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+          "apiVersion": "2020-03-01",
+          "name": "[variables('filePrivateDnsZoneGroup')]",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[variables('filePrivateDnsZoneId')]",
+            "[variables('fileStorageAccountPrivateEndpointId')]"
+          ],
+          "properties": {
+            "privateDnsZoneConfigs": [
+              {
+                "name": "dnsConfig",
+                "properties": {
+                  "privateDnsZoneId": "[variables('NetworkingApproachPrivateDnsZoneId')[parameters('networkArchitectureApproach')].filePrivateDnsZoneIdReg]"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "condition": "[and(equals(parameters('networkArchitectureApproach'),'Federated'),variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint)]",
+          "type": "Microsoft.Network/privateDnsZones",
+          "apiVersion": "2018-09-01",
+          "name": "[variables('tablePrivateDnsZoneName')]",
+          "tags": "[parameters('resourceTags')]",
+          "location": "global",
+          "properties": {
+            "maxNumberOfRecordSets": 25000,
+            "maxNumberOfVirtualNetworkLinks": 1000,
+            "maxNumberOfVirtualNetworkLinksWithRegistration": 100
+          }
+        },
+        {
+          "condition": "[and(equals(parameters('networkArchitectureApproach'),'Federated'),variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint)]",
+          "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+          "apiVersion": "2018-09-01",
+          "name": "[concat(variables('tablePrivateDnsZoneName'), '/link_to_', toLower(parameters('virtualNetworkName')))]",
+          "tags": "[parameters('resourceTags')]",
+          "location": "global",
+          "dependsOn": [
+            "[variables('tablePrivateDnsZoneId')]"
+          ],
+          "properties": {
+            "registrationEnabled": false,
+            "virtualNetwork": {
+              "id": "[variables('vnetId')]"
+            }
+          }
+        },
+        {
+          "condition": "[variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint]",
+          "type": "Microsoft.Network/privateEndpoints",
+          "apiVersion": "2020-04-01",
+          "name": "[variables('tableStorageAccountPrivateEndpointName')]",
+          "tags": "[parameters('resourceTags')]",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[variables('blobStorageAccountId')]"
+          ],
+          "properties": {
+            "privateLinkServiceConnections": [
+              {
+                "name": "[variables('tableStorageAccountPrivateEndpointName')]",
+                "properties": {
+                  "privateLinkServiceId": "[variables('blobStorageAccountId')]",
+                  "groupIds": [
+                    "[variables('tableStorageAccountPrivateEndpointGroupName')]"
+                  ]
+                }
+              }
+            ],
+            "subnet": {
+              "id": "[variables('subnetId')]"
+            },
+            "customDnsConfigs": [
+              {
+                "fqdn": "[concat(variables('storageAccountName'), variables('tablePublicDNSZoneForwarder'))]"
+              }
+            ]
+          }
+        },
+        {
+          "condition": "[and(variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint,parameters('PrivateDNSIntegration'))]",
+          "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+          "apiVersion": "2020-03-01",
+          "name": "[variables('tablePrivateDnsZoneGroup')]",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[variables('tablePrivateDnsZoneId')]",
+            "[variables('tableStorageAccountPrivateEndpointId')]"
+          ],
+          "properties": {
+            "privateDnsZoneConfigs": [
+              {
+                "name": "dnsConfig",
+                "properties": {
+                  "privateDnsZoneId": "[variables('NetworkingApproachPrivateDnsZoneId')[parameters('networkArchitectureApproach')].tablePrivateDnsZoneIdReg]"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "condition": "[and(equals(parameters('networkArchitectureApproach'),'Federated'),variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint)]",
+          "type": "Microsoft.Network/privateDnsZones",
+          "apiVersion": "2018-09-01",
+          "name": "[variables('queuePrivateDnsZoneName')]",
+          "tags": "[parameters('resourceTags')]",
+          "location": "global",
+          "properties": {
+            "maxNumberOfRecordSets": 25000,
+            "maxNumberOfVirtualNetworkLinks": 1000,
+            "maxNumberOfVirtualNetworkLinksWithRegistration": 100
+          }
+        },
+        {
+          "condition": "[and(equals(parameters('networkArchitectureApproach'),'Federated'),variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint)]",
+          "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+          "apiVersion": "2018-09-01",
+          "name": "[concat(variables('queuePrivateDnsZoneName'), '/link_to_', toLower(parameters('virtualNetworkName')))]",
+          "tags": "[parameters('resourceTags')]",
+          "location": "global",
+          "dependsOn": [
+            "[variables('queuePrivateDnsZoneId')]"
+          ],
+          "properties": {
+            "registrationEnabled": false,
+            "virtualNetwork": {
+              "id": "[variables('vnetId')]"
+            }
+          }
+        },
+        {
+          "condition": "[variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint]",
+          "type": "Microsoft.Network/privateEndpoints",
+          "apiVersion": "2020-04-01",
+          "name": "[variables('queueStorageAccountPrivateEndpointName')]",
+          "tags": "[parameters('resourceTags')]",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[variables('blobStorageAccountId')]"
+          ],
+          "properties": {
+            "privateLinkServiceConnections": [
+              {
+                "name": "[variables('queueStorageAccountPrivateEndpointName')]",
+                "properties": {
+                  "privateLinkServiceId": "[variables('blobStorageAccountId')]",
+                  "groupIds": [
+                    "[variables('queueStorageAccountPrivateEndpointGroupName')]"
+                  ]
+                }
+              }
+            ],
+            "subnet": {
+              "id": "[variables('subnetId')]"
+            },
+            "customDnsConfigs": [
+              {
+                "fqdn": "[concat(variables('storageAccountName'), variables('queuePublicDNSZoneForwarder'))]"
+              }
+            ]
+          }
+        },
+        {
+          "condition": "[and(variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint,parameters('PrivateDNSIntegration'))]",
+          "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+          "apiVersion": "2020-03-01",
+          "name": "[variables('queuePrivateDnsZoneGroup')]",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[variables('queuePrivateDnsZoneId')]",
+            "[variables('queueStorageAccountPrivateEndpointId')]"
+          ],
+          "properties": {
+            "privateDnsZoneConfigs": [
+              {
+                "name": "dnsConfig",
+                "properties": {
+                  "privateDnsZoneId": "[variables('NetworkingApproachPrivateDnsZoneId')[parameters('networkArchitectureApproach')].queuePrivateDnsZoneIdReg]"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "condition": "[equals(variables('environmentConfig')[parameters('deploymentEnvironment')].diagnostics,'Yes')]",
+          "type": "Microsoft.Resources/deploymentScripts",
+          "apiVersion": "2019-10-01-preview",
+          "name": "[variables('scriptName')]",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[variables('blobStorageAccountId')]"
+          ],
+          "identity": {
+            "type": "UserAssigned",
+            "userAssignedIdentities": {
+              "[resourceId(parameters('identityRGName'),'Microsoft.ManagedIdentity/userAssignedIdentities', parameters('identityName'))]": { /*ttk bug*/ }
+            }
+          },
+          "kind": "AzurePowerShell",
+          "properties": {
+            "forceUpdateTag": "1",
+            "azPowerShellVersion": "4.8",
+            "timeout": "PT30M",
+            "retentionInterval": "P1D",
+            "cleanupPreference": "OnSuccess",
+            "arguments": "[format(' -storageAccountName {0} -logRetention {1} -resourceGroupName {2}', variables('storageAccountName'), parameters('monitorLogRetention'), resourceGroup().name)]",
+            "scriptContent": "
+                param(
+                    [string] $storageAccountName,
+                    [string] $logRetention,
+                    [string] $resourceGroupName
+                )
+                $context = New-AzStorageContext -StorageAccountName $storageAccountName -UseConnectedAccount
+                Set-AzStorageServiceLoggingProperty -ServiceType Blob -LoggingOperations read,write,delete -RetentionDays $logRetention -Version 2.0 -Context $context
+                Enable-AzStorageDeleteRetentionPolicy -RetentionDays 7 -Context $context
+                "
+          }
+        }
+      ],
+      "outputs": {
+        "storageAccountName": {
+          "type": "string",
+          "value": "[variables('storageAccountName')]"
+        },
+        "securityStorageResourceGroup": {
+          "type": "string",
+          "value": "[resourceGroup().name]"
+        },
+        "securityStorageEndpoint": {
+          "type": "string",
+          "value": "[reference(concat('Microsoft.Storage/storageAccounts/', variables('storageAccountName')), '2016-01-01').primaryEndpoints.blob]"
+        }
+      }
+    },
+    "resourceGroup": "AutomationRG",
+    "parameters": {
+      "resourceTags": {
+        "value": "[parameters('resourceTags')]"
+      },
+      "localBU": {
+        "value": "[parameters('resourceNameBU')]"
+      },
+      "storageSLARequirement": {
+        "value": "[parameters('storageSLARequirement')]"
+      },
+      "networkAccessApproach": {
+        "value": "[parameters('networkAccessApproach')]"
+      },
+      "networkArchitectureApproach": {
+        "value": "[parameters('networkArchitectureApproach')]"
+      },
+      "VirtualNetworkName": {
+        "value": "[parameters('ExistingVNetName')]"
+      },
+      "SubnetName": {
+        "value": "[parameters('ExistingVNetDataSNName')]"
+      },
+      "VNetResourceGroupName": {
+        "value": "[parameters('ExistingVNetRGName')]"
+      },
+      "ExistingPrivateDNSId_blob": {
+        "value": "[parameters('ExistingPrivateDNSId_blob')]"
+      },
+      "ExistingPrivateDNSId_file": {
+        "value": "[parameters('ExistingPrivateDNSId_file')]"
+      },
+      "ExistingPrivateDNSId_table": {
+        "value": "[parameters('ExistingPrivateDNSId_table')]"
+      },
+      "ExistingPrivateDNSId_queue": {
+        "value": "[parameters('ExistingPrivateDNSId_queue')]"
+      },
+      "monitoringApproach": {
+        "value": "[parameters('monitoringApproach')]"
+      },
+      "decentralizedLogAnalytics_workspaceId": {
+        "value": "[parameters('decentralizedLogAnalytics_workspaceId')]"
+      },
+      "centralizedLogAnalytics_workspaceId": {
+        "value": "[parameters('centralizedLogAnalytics_workspaceId')]"
+      },
+      "deploymentEnvironment": {
+        "value": "[parameters('deploymentEnvironment')]"
+      },
+      "monitorLogRetention": {
+        "value": "[parameters('monitorLogRetention')]"
+      },
+      "identityName": {
+        "value": "[parameters('deploymentManagedIdentityName')]"
+      },
+      "identityRGName": {
+        "value": "[parameters('deploymentManagedIdentityRGName')]"
+      },
+      "PrivateDNSIntegration": {
+        "value": "[parameters('PrivateDNSIntegration')]"
+      }
+    }
+  }
+}

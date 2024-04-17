@@ -1,0 +1,90 @@
+{
+    "kind": "template",
+    "properties": {
+      "template": {
+        "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+        "contentVersion": "1.0.0.0",
+        "parameters": {
+          "subBudgetName": {
+            "type": "string",
+            "metadata": {
+              "description": "Name of the Budget. It should be unique within a resource group."
+            }
+          },
+          "subTimeGrain": {
+            "type": "string",
+            "allowedValues": ["Monthly", "Quarterly", "Annually"],
+            "metadata": {
+              "description": "The time covered by a budget. Tracking of the amount will be reset based on the time grain."
+            }
+          },
+          "subBudgetAmount": {
+            "type": "int",
+            "metadata": {
+              "description": "The total amount of cost or usage to track with the budget"
+            }
+          },
+          "subBudgetFirstThreshold": {
+            "type": "int",
+            "metadata": {
+              "description": "Threshold value associated with a notification. Notification is sent when the cost exceeded the threshold. It is always percent and has to be between 0.01 and 1000."
+            }
+          },
+          "subContactEmails": {
+            "type": "array",
+            "metadata": {
+              "description": "The list of email addresses to send the budget notification to when the threshold is exceeded."
+            }
+          }
+        },
+        "variables": {
+          "subBudgetStartDate": "2023-01-01",
+          "subBugetEndDate": "2023-01-28"
+        },
+        "resources": [
+          {
+            "type": "Microsoft.Consumption/budgets",
+            "apiVersion": "2021-10-01",
+            "name": "[parameters('subBudgetName')]",
+            "properties": {
+              "timePeriod": {
+                "startDate": "[variables('subBudgetStartDate')]",
+                "endDate": "[variables('subBugetEndDate')]"
+              },
+              "timeGrain": "[parameters('subTimeGrain')]",
+              "amount": "[parameters('subBudgetAmount')]",
+              "category": "Cost",
+              "notifications": {
+                "NotificationForExceededBudget1": {
+                  "enabled": true,
+                  "operator": "GreaterThan",
+                  "threshold": "[parameters('subBudgetFirstThreshold')]",
+                  "contactEmails": "[parameters('subContactEmails')]"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "displayName": "Budget On Subscription Level",
+      "parameters": {
+        "subBudgetName": {
+          "value": "[parameters('subBudgetName_assign')]"
+        },
+        "subTimeGrain": {
+          "value": "[parameters('subTimeGrain_assign')]"
+        },
+        "subBudgetAmount": {
+          "value": "[parameters('subBudgetAmount_assign')]"
+        },
+        "subBudgetFirstThreshold": {
+          "value": "[parameters('subBudgetFirstThreshold_assign')]"
+        },
+        "subContactEmails": {
+          "value": "[parameters('subContactEmails_assign')]"
+        }
+      }
+    },
+    "type": "Microsoft.Blueprint/blueprints/artifacts",
+    "name": "defaultName"
+}

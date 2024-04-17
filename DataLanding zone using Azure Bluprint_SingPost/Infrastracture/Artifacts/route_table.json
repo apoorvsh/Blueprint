@@ -1,0 +1,153 @@
+{
+  "kind": "template",
+  "properties": {
+    "displayName": "Deploy User Defined Route",
+    "description": "Deploy User Defined Route",
+    "template": {
+      "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "projectCode": {
+          "type": "string",
+          "metadata": {
+            "description": "Project Code"
+          }
+        },
+        "environment": {
+          "type": "string",
+          "metadata": {
+            "description": "Environment of Project"
+          }
+        },
+        "combineTags": {
+          "type": "object",
+          "metadata": {
+            "discription": "Combine Resource Tags for All resources"
+          }
+        },
+        "nextHopIpAddress": {
+          "type": "string",
+          "metadata": {
+            "discription": "Next Hop Ip Address will be azure Firewall"
+          }
+        }
+      },
+      "variables": {
+        "computeRouteName": "[toLower(concat('rt-',parameters('projectCode'),'-', parameters('environment'),'-compute01'))]",
+        "databricksHostRouteName": "[toLower(concat('rt-',parameters('projectCode'),'-', parameters('environment'),'-dbwhost01'))]",
+        "databricksContainerRouteName": "[toLower(concat('rt-',parameters('projectCode'),'-', parameters('environment'),'-dbwcon01'))]",
+        "computeDefaultTag": {
+          "Name": "[variables('computeRouteName')]"
+        },
+        "databricksHostDefaultTag": {
+          "Name": "[variables('databricksHostRouteName')]"
+        },
+        "databricksContainerDefaultTag": {
+          "Name": "[variables('databricksContainerRouteName')]"
+        },
+        "disableBgpRoutePropagation": true,
+        "addressPrefix": "0.0.0.0/0",
+        "nextHopType": "VirtualAppliance"
+      },
+      "resources": [
+        {
+          "type": "Microsoft.Network/routeTables",
+          "apiVersion": "2020-11-01",
+          "name": "[variables('computeRouteName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('computeDefaultTag'), parameters('combineTags'))]",
+          "properties": {
+            "disableBgpRoutePropagation": "[variables('disableBgpRoutePropagation')]",
+            "routes": [
+              {
+                "name": "rt-compute-to-all-01",
+                "properties": {
+                  "addressPrefix": "[variables('addressPrefix')]",
+                  "nextHopIpAddress": "[parameters('nextHopIpAddress')]",
+                  "nextHopType": "[variables('nextHopType')]"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "Microsoft.Network/routeTables",
+          "apiVersion": "2020-11-01",
+          "name": "[variables('databricksHostRouteName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('databricksHostDefaultTag'), parameters('combineTags'))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Network/routeTables', variables('computeRouteName'))]"
+          ],
+          "properties": {
+            "disableBgpRoutePropagation": "[variables('disableBgpRoutePropagation')]",
+            "routes": [
+              {
+                "name": "rt-dbwhost-to-all-01",
+                "properties": {
+                  "addressPrefix": "[variables('addressPrefix')]",
+                  "nextHopIpAddress": "[parameters('nextHopIpAddress')]",
+                  "nextHopType": "[variables('nextHopType')]"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "Microsoft.Network/routeTables",
+          "apiVersion": "2020-11-01",
+          "name": "[variables('databricksContainerRouteName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('databricksContainerDefaultTag'), parameters('combineTags'))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Network/routeTables', variables('databricksHostRouteName'))]"
+          ],
+          "properties": {
+            "disableBgpRoutePropagation": "[variables('disableBgpRoutePropagation')]",
+            "routes": [
+              {
+                "name": "rt-dbwcon-to-all-01",
+                "properties": {
+                  "addressPrefix": "[variables('addressPrefix')]",
+                  "nextHopIpAddress": "[parameters('nextHopIpAddress')]",
+                  "nextHopType": "[variables('nextHopType')]"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "outputs": {
+        "computeRouteId": {
+          "type": "string",
+          "value": "[resourceId('Microsoft.Network/routeTables', variables('computeRouteName'))]"
+        },
+        "databricksHostRouteId": {
+          "type": "string",
+          "value": "[resourceId('Microsoft.Network/routeTables', variables('databricksHostRouteName'))]"
+        },
+        "databricksContainerRouteId": {
+          "type": "string",
+          "value": "[resourceId('Microsoft.Network/routeTables', variables('databricksContainerRouteName'))]"
+        }
+      }
+    },
+    "resourceGroup": "network_Rg",
+    "parameters": {
+      "projectCode": {
+        "value": "[parameters('projectCode_assign')]"
+      },
+      "environment": {
+        "value": "[parameters('environment_assign')]"
+      },
+      "combineTags": {
+        "value": "[parameters('combineTags_assign')]"
+      },
+      "nextHopIpAddress": {
+        "value": "[parameters('nextHopIpAddress_assign')]"
+      }
+    }
+  },
+  "type": "Microsoft.Blueprint/blueprints/artifacts",
+  "name": "route_table"
+}

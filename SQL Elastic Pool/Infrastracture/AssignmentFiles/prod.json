@@ -1,0 +1,121 @@
+{
+  "identity": {
+    "type": "UserAssigned",
+    "userAssignedIdentities": {
+      "/subscriptions/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx/resourcegroups/pc-dwcore01-rg01/providers/Microsoft.ManagedIdentity/userAssignedIdentities/pc-dwcore01-id01": {}
+    }
+  },
+  "location": "centralus",
+  "properties": {
+    "blueprintId": "test",
+    "resourceGroups": {
+      "DataAppsRG": {
+        "name": "Pc-DWDataApps01-Rg01"
+      }
+    },
+    "parameters": {
+      "azureSQLDatabase_adminADUser": {
+        "value": "bill.richard@clientcorporation.com"
+      },
+      "azureSQLDatabase_adminPassword": {
+        "reference": {
+          "keyVault": {
+            "id": "/subscriptions/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx/resourceGroups/pc-dwcore01-rg01/providers/Microsoft.KeyVault/vaults/pc-dw-core-kv01"
+          },
+          "secretName": "pc-dw-core-synsql-admin-pass"
+        }
+      },
+      "azureSQLDatabase_adminSID": {
+        "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "azureSQLDatabase_adminUser": {
+        "reference": {
+          "keyVault": {
+            "id": "/subscriptions/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx/resourceGroups/pc-dwcore01-rg01/providers/Microsoft.KeyVault/vaults/pc-dw-core-kv01"
+          },
+          "secretName": "pc-dw-core-synsql-admin"
+        }
+      },
+      "azureSQLDatabase_databaseNames": {
+        "value": [
+          "default"
+        ]
+      },
+      "azureSQLDatabase_emailAddresses": {
+        "value": [
+          "bill.richard@clientcorporation.com",
+          "wrichard@spyglassmtg.com"
+        ]
+      },
+      "centralizedLogAnalytics_workspaceId": {
+        "value": "/subscriptions/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx/resourcegroups/pc-loganalyticsws-rg01/providers/microsoft.operationalinsights/workspaces/pc-loganalyticsws01"
+      },
+      "decentralizedLogAnalytics_workspaceId": {
+        "value": "/subscriptions/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx/resourcegroups/pc-loganalyticsws-rg01/providers/microsoft.operationalinsights/workspaces/pc-loganalyticsws01"
+      },
+      "deploymentEnvironment": {
+        "value": "p"
+      },
+      "deploymentManagedIdentityId": {
+        "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "deploymentManagedIdentityName": {
+        "value": "pc-dwcore01-id01"
+      },
+      "deploymentManagedIdentityRGName": {
+        "value": "pc-dwcore01-rg01"
+      },
+      "ExistingPrivateDNSId_AzSQL": {
+        "value": "/subscriptions/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx/resourceGroups/pc-hubinf-rg01/providers/Microsoft.Network/privateDnsZones/privatelink.database.windows.net"
+      },
+      "ExistingVNetName": {
+        "value": "Pc-DWVnet01"
+      },
+      "ExistingVNetRGName": {
+        "value": "Pc-DWVnet01-Rg01"
+      },
+      "ExistingVNetDataSNName": {
+        "value": "pc-dwvnet01-data01"
+      },
+      "ExistingVNetComputeSNName": {
+        "value": "pc-dwvnet01-compute01"
+      },
+      "monitoringApproach": {
+        "value": "Centralized"
+      },
+      "monitorLogRetention": {
+        "value": 365
+      },
+      "networkAccessApproach": {
+        "value": "Private"
+      },
+      "networkArchitectureApproach": {
+        "value": "Hub & Spoke"
+      },
+      "resourceLocation": {
+        "value": "centralus"
+      },
+      "resourceNameBU": {
+        "value": "rdpapps"
+      },
+      "resourceTags": {
+        "value": {
+          "Environment": "dwprod",
+          "ApplicationName": "RDP",
+          "Business Unit": "Analytics",
+          "ApplicationPurpose": "client Data Platform",
+          "Resource Purpose": "client Data Platform Application Services"
+        }
+      },
+      "securityStorageAccountName": {
+        "value": "pcdwsecbstore01"
+      },
+      "securityStorageResourceGroup": {
+        "value": "Pc-DWMonitor01-Rg01"
+      },
+      "storageSLARequirement": {
+        "value": "16 nines"
+      }
+    }
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "identity": {
+    "type": "UserAssigned",
+    "userAssignedIdentities": {
+      "/subscriptions/4ebd8350-9a7a-42f0-bc93-0eea92ca9757/resourcegroups/ds-analytics-core-identity-rg01/providers/Microsoft.ManagedIdentity/userAssignedIdentities/ds-analytics-core-id01": {}
+    }
+  },
+  "location": "southcentralus",
+  "properties": {
+    "blueprintId": "/subscriptions/4ebd8350-9a7a-42f0-bc93-0eea92ca9757/providers/Microsoft.Blueprint/blueprints/LN_SQLMIProductService_BP",
+    "resourceGroups": {
+      "SQLServicesRG": {
+        "name": "RG-US-BlcSQLProd01"
+      }
+    },
+    "locks": {
+      "mode": "AllResourcesDoNotDelete"
+    },
+    "parameters": {
+      "sqlAdministratorPassword": {
+        "reference": {
+          "keyVault": {
+            "id": "/subscriptions/4ebd8350-9a7a-42f0-bc93-0eea92ca9757/resourceGroups/RG-US-SynIDShare01/providers/Microsoft.KeyVault/vaults/KV-US-SynShare09"
+          },
+          "secretName": "SynPass-KVSec-US-SynShare01"
+        }
+      },
+      "sqlAdministratorLogin": {
+        "reference": {
+          "keyVault": {
+            "id": "/subscriptions/4ebd8350-9a7a-42f0-bc93-0eea92ca9757/resourceGroups/RG-US-SynIDShare01/providers/Microsoft.KeyVault/vaults/KV-US-SynShare09"
+          },
+          "secretName": "SynUser-KVSec-US-SynShare01"
+        }
+      },
+      "emailAddresses": {
+        "value": [
+          "apoorv.sharma@celebaltech.com",
+          "anshita.goyal@celebaltech.com"
+        ]
+      },
+      "centralizedLogAnalytics_workspaceId": {
+        "value": "NA"
+      },
+      "decentralizedLogAnalytics_workspaceId": {
+        "value": "/subscriptions/4ebd8350-9a7a-42f0-bc93-0eea92ca9757/resourcegroups/rg-us-synsecshare01/providers/microsoft.operationalinsights/workspaces/log-us-synshare01"
+      },
+      "deploymentEnvironment": {
+        "value": "p"
+      },
+      "ExistingVNetName": {
+        "value": "NET-US-SynProd01"
+      },
+      "ExistingVNetRGName": {
+        "value": "RG-US-SynNetProd01"
+      },
+      "ExistingVNetSQLMISNName": {
+        "value": "net-us-synprod01-mgmt01"
+      },
+      "monitoringApproach": {
+        "value": "Decentralized"
+      },
+      "monitorLogRetention": {
+        "value": 0
+      },
+      "resourceLocation": {
+        "value": "southcentralus"
+      },
+      "resourceNamePrefix": {
+        "value": "Blc"
+      },
+      "resourceTags": {
+        "value": {
+          "APP": "BLC",
+          "Owner": "William Stromer",
+          "ENV": "Prod"
+        }
+      },
+      "vaStorageName": {
+        "value": "secstoreussynshare09"
+      },
+      "vaStorageRGName": {
+        "value": "RG-US-SynSecShare01"
+      },
+      "vaStorageEndpoint": {
+        "value": "https://secstoreussynshare09.blob.core.windows.net/"
+      }
+    }
+  }
+}

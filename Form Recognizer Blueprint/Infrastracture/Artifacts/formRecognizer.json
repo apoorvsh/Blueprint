@@ -1,0 +1,356 @@
+{
+  "kind": "template",
+  "properties": {
+    "dependsOn": ["vnetSubnet"],
+    "template": {
+      "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "resourceTags": {
+          "type": "object",
+          "metadata": {
+            "discription": "Combine Resource Tags for All resources"
+          }
+        },
+        "vnetIdRef": {
+          "type": "string",
+          "metadata": {
+            "description": "Referencing VNET ID"
+          }
+        },
+        "CorporateIP": {
+          "type": "array"
+        },
+        "SubnetRef": {
+          "type": "string",
+          "metadata": {
+            "description": "Referencing Web Subnet Id"
+          }
+        },
+        "networkArchitectureApproach": {
+          "type": "string",
+          "metadata": {
+            "description": "Conditional control for Private DNS Services"
+          }
+        },
+        "ExistingPrivateDNSId_cognitiveService": {
+          "type": "string"
+        },
+        "networkAccessApproach": {
+          "type": "string"
+        },
+        "PrivateDNSIntegration": {
+          "type": "bool"
+        },
+        "deploymentEnvironment": {
+          "type": "string"
+        },
+        "localBU": {
+          "type": "string"
+        },
+        /*"identityRGName": {
+      "type": "string"
+    },
+    "identityName": {
+      "type": "string"
+    },*/
+        "VirtualNetworkName": {
+          "type": "string",
+          "metadata": {
+            "displayName": "VNet for VNet Endpoint Rules"
+          }
+        },
+        "monitoringApproach": {
+          "type": "string",
+          "metadata": {
+            "description": "Organizational monitoring approach. For more info: https://docs.microsoft.com/en-us/azure/azure-monitor/platform/design-logs-deployment#important-considerations-for-an-access-control-strategy"
+          }
+        },
+        /*"decentralizedLogAnalytics_workspaceId": {
+      "type": "string",
+      "metadata": {
+        "description": "ResourceID of the Decentralized of Functional approach Log Analytics workspace in which resource logs should be saved."
+      }
+    },*/
+        "centralizedLogAnalytics_workspaceId": {
+          "type": "string",
+          "metadata": {
+            "displayName": "Log Analytics Workspace Id for all auditing and diagnostics",
+            "description": "Specifies the Log Analytics Workspace Resource ID that should be used for auditing and diagnostics."
+          },
+          "allowedValues": []
+        }
+      },
+      "variables": {
+        "formRecognizerName": "[toLower(concat(parameters('deploymentEnvironment'),substring(resourceGroup().location, 0, 1),'-',parameters('localBU'),'-FormRecognizer01a3'))]",
+        "customDomainName": "[toLower(concat(parameters('deploymentEnvironment'),substring(resourceGroup().location, 0, 1),'-',parameters('localBU'),'-FormRecognizer01a3'))]",
+        "cognitiveServiceDiagnosticSettingsName": "[toLower(concat(parameters('deploymentEnvironment'),substring(resourceGroup().location, 0, 1),'-',parameters('localBU'),'-diagnostic01'))]",
+        "cognitiveServiceResourceId": "[resourceId('Microsoft.CognitiveServices/accounts',variables('FormRecognizerName'))]",
+        "privateEndpointName": "[concat(variables('FormRecognizerName'),'link')]",
+        "cognitiveServicePrivateEndpointName": "[concat(variables('privateEndpointName'),'formrecognizer')]",
+        "logAnalyticsworkspaceId": "[if(equals(parameters('monitoringApproach'), 'Decentralized'), parameters('decentralizedLogAnalytics_workspaceId'),parameters('centralizedLogAnalytics_workspaceId'))]",
+        "cognitiveServiceDNSZoneForwarder": "cognitiveservices.azure.com",
+        "cognitiveServicePrivateDnsZoneName": "[concat('privatelink.', variables('cognitiveServiceDNSZoneForwarder'))]",
+        "sku": "S0",
+        "publicNetworkAccess": "Enabled",
+        "cognitiveServicePrivateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', variables('cognitiveServicePrivateDnsZoneName'))]",
+        "cognitiveServicePrivateEndpointId": "[resourceId('Microsoft.Network/privateEndpoints', variables('cognitiveServicePrivateEndpointName'))]",
+        "cognitiveServicePrivateEndpointGroupName": "account",
+        "cognitiveServicePrivateDnsZoneGroup": "[concat(variables('cognitiveServicePrivateEndpointName'),'/', variables('cognitiveServicePrivateEndpointGroupName'), 'PrivateDnsZoneGroup')]",
+        "NetworkingApproachPrivateDnsZoneId": {
+          "Hub & Spoke": {
+            "cognitiveServicePrivateDnsZoneIdReg": "[parameters('ExistingPrivateDNSId_cognitiveService')]"
+          },
+          "Federated": {
+            "cognitiveServicePrivateDnsZoneIdReg": "[variables('cognitiveServicePrivateDnsZoneId')]"
+          }
+        },
+        "networkAccessApproach": {
+          "Private": {
+            "PublicIP": false,
+            "PrivateEndpoint": true,
+            "PublicAccess": "Disabled"
+          },
+          "Both": {
+            "PublicIP": true,
+            "PrivateEndpoint": true,
+            "PublicAccess": "Enabled"
+          },
+          "Public": {
+            "PublicIP": true,
+            "PrivateEndpoint": false,
+            "PublicAccess": "Enabled"
+          }
+        },
+        "environmentConfig": {
+          "p": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes"
+          },
+          "d": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes"
+          },
+          "q": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes"
+          },
+          "s": {
+            "AdvancedSecurity": "No",
+            "diagnostics": "No"
+          },
+          "dr": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes"
+          }
+        }
+      },
+      "resources": [
+        {
+          "type": "Microsoft.CognitiveServices/accounts",
+          "apiVersion": "2022-03-01",
+          "name": "[variables('formRecognizerName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[parameters('resourceTags')]",
+          "sku": {
+            "name": "[variables('sku')]"
+          },
+          "kind": "FormRecognizer",
+          /*"identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[resourceId(parameters('identityRGName'),'Microsoft.ManagedIdentity/userAssignedIdentities', parameters('identityName'))]": {}
+        }
+      },*/
+          "identity": {
+            "type": "SystemAssigned"
+          },
+          "properties": {
+            "publicNetworkAccess": "[variables('publicNetworkAccess')]",
+            "customSubDomainName": "[variables('customDomainName')]",
+            "networkAcls": {
+              "defaultAction": "Deny",
+              "bypass": "AzureServices",
+              "copy": [
+                {
+                  "name": "ipRules",
+                  "count": "[length(parameters('CorporateIP'))]",
+                  "input": {
+                    "value": "[parameters('CorporateIP')[copyIndex('ipRules')]]"
+                  }
+                }
+              ]
+            }
+          }
+        },
+
+        {
+          "condition": "[variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint]",
+          "type": "Microsoft.Network/privateEndpoints",
+          "apiVersion": "2020-04-01",
+          "name": "[variables('cognitiveServicePrivateEndpointName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[parameters('resourceTags')]",
+          "dependsOn": ["[variables('cognitiveServiceResourceId')]"],
+          "properties": {
+            "privateLinkServiceConnections": [
+              {
+                "name": "[variables('cognitiveServicePrivateEndpointName')]",
+                "properties": {
+                  "privateLinkServiceId": "[variables('cognitiveServiceResourceId')]",
+                  "groupIds": [
+                    "[variables('cognitiveServicePrivateEndpointGroupName')]"
+                  ]
+                }
+              }
+            ],
+            "subnet": {
+              "id": "[parameters('subnetRef')]"
+            },
+            "customDnsConfigs": [
+              {
+                "fqdn": "[concat(variables('customDomainName'), variables('cognitiveServiceDNSZoneForwarder'))]"
+              }
+            ]
+          }
+        },
+        {
+          "condition": "[and(equals(parameters('networkArchitectureApproach'),'Federated'),variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint)]",
+          "type": "Microsoft.Network/privateDnsZones",
+          "apiVersion": "2018-09-01",
+          "name": "[variables('cognitiveServicePrivateDnsZoneName')]",
+          "location": "global",
+          "tags": "[parameters('resourceTags')]",
+          "properties": {
+            "maxNumberOfRecordSets": 25000,
+            "maxNumberOfVirtualNetworkLinks": 1000,
+            "maxNumberOfVirtualNetworkLinksWithRegistration": 100
+          }
+        },
+        {
+          "condition": "[and(equals(parameters('networkArchitectureApproach'),'Federated'),variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint)]",
+          "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+          "apiVersion": "2018-09-01",
+          "name": "[concat(variables('cognitiveServicePrivateDnsZoneName'), '/link_to_', toLower(parameters('virtualNetworkName')))]",
+          "location": "global",
+          "dependsOn": ["[variables('cognitiveServicePrivateDnsZoneId')]"],
+          "properties": {
+            "registrationEnabled": false,
+            "virtualNetwork": {
+              "id": "[parameters('vnetIdRef')]"
+            }
+          }
+        },
+        {
+          "condition": "[and(variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint,parameters('PrivateDNSIntegration'))]",
+          "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+          "apiVersion": "2020-03-01",
+          "name": "[variables('cognitiveServicePrivateDnsZoneGroup')]",
+          "dependsOn": [
+            "[variables('cognitiveServicePrivateDnsZoneId')]",
+            "[variables('cognitiveServicePrivateEndpointId')]"
+          ],
+          "properties": {
+            "privateDnsZoneConfigs": [
+              {
+                "name": "dnsConfig",
+                "properties": {
+                  "privateDnsZoneId": "[variables('NetworkingApproachPrivateDnsZoneId')[parameters('networkArchitectureApproach')].cognitiveServicePrivateDnsZoneIdReg]"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "condition": "[equals(variables('environmentConfig')[parameters('deploymentEnvironment')].diagnostics,'Yes')]",
+          "type": "Microsoft.Insights/diagnosticSettings",
+          "apiVersion": "2021-05-01-preview",
+          "scope": "[format('Microsoft.CognitiveServices/accounts/{0}', variables('formRecognizerName'))]",
+          "name": "[variables('cognitiveServiceDiagnosticSettingsName')]",
+          "dependsOn": ["[variables('cognitiveServiceResourceId')]"],
+          "properties": {
+            "workspaceId": "[variables('logAnalyticsworkspaceId')]",
+            "logs": [
+              {
+                "category": null,
+                "categoryGroup": "Audit",
+                "enabled": false,
+                "retentionPolicy": {
+                  "days": 0,
+                  "enabled": false
+                }
+              },
+              {
+                "category": null,
+                "categoryGroup": "allLogs",
+                "enabled": true,
+                "retentionPolicy": {
+                  "days": 0,
+                  "enabled": false
+                }
+              }
+            ],
+            "metrics": [
+              {
+                "enabled": true,
+                "retentionPolicy": {
+                  "days": 0,
+                  "enabled": false
+                },
+                "category": "AllMetrics"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "resourceGroup": "databricks_rg",
+    "displayName": "creation of databricks",
+    "parameters": {
+      "vnetIdRef": {
+        "value": "[artifacts('vnetSubnet').outputs.vnetId]"
+      },
+      "SubnetRef": {
+        "value": "[artifacts('vnetSubnet').outputs.dataSubnetId]"
+      },
+      "networkArchitectureApproach": {
+        "value": "[parameters('networkArchitectureApproach')]"
+      },
+      "networkAccessApproach": {
+        "value": "[parameters('networkAccessApproach')]"
+      },
+      "PrivateDNSIntegration": {
+        "value": "[parameters('PrivateDNSIntegration')]"
+      },
+      "VirtualNetworkName": {
+        "value": "[artifacts('vnetSubnet').outputs.vnetName]"
+      },
+      "deploymentEnvironment": {
+        "value": "[parameters('deploymentEnvironment')]"
+      },
+      "localBU": {
+        "value": "[parameters('resourceNameBU')]"
+      },
+      "resourceTags": {
+        "value": "[parameters('resourceTags')]"
+      },
+      "centralizedLogAnalytics_workspaceId": {
+        "value": "[parameters('centralizedLogAnalytics_workspaceId')]"
+      },
+      "CorporateIP": {
+        "value": "[parameters('CorporateIP')]"
+      },
+      "ExistingPrivateDNSId_cognitiveService": {
+        "value": "[parameters('ExistingPrivateDNSId_cognitiveService')]"
+      },
+      "monitoringApproach": {
+        "value": "[parameters('monitoringApproach')]"
+      }
+      /*"decentralizedLogAnalytics_workspaceId": {
+        "value": "[artifacts('').outputs.]"
+      }*/
+    }
+  },
+  "type": "Microsoft.Blueprint/blueprints/artifacts",
+  "name": "formrecognizer"
+}

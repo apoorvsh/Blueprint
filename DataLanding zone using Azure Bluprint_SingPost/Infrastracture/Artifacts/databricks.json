@@ -1,0 +1,181 @@
+{
+  "kind": "template",
+  "properties": {
+    "dependsOn": ["network_security_group", "route_table", "subnets"],
+    "template": {
+      "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "projectCode": {
+          "type": "string",
+          "metadata": {
+            "description": "Project Code"
+          }
+        },
+        "environment": {
+          "type": "string",
+          "metadata": {
+            "description": "Environment of project"
+          }
+        },
+        "combineTags": {
+          "type": "object",
+          "metadata": {
+            "discription": "Combine Resource Tags for All resources"
+          }
+        },
+        "vnetIdRef": {
+          "type": "string",
+          "metadata": {
+            "description": "Referencing VNET ID"
+          }
+        },
+        "containerSubnetNameRef": {
+          "type": "string",
+          "metadata": {
+            "description": "Referencing Databricks Container Subnet Name"
+          }
+        },
+        "hostSubnetNameRef": {
+          "type": "string",
+          "metadata": {
+            "description": "Referencing Databricks Host Subnet Name"
+          }
+        },
+        "webSubnetRef": {
+          "type": "string",
+          "metadata": {
+            "description": "Referencing Web Subnet Id"
+          }
+        }
+      },
+      "variables": {
+        "workspaceName": "[toLower(concat('dbw-',parameters('projectCode'),'-',parameters('environment'),'-databricks01b5'))]",
+        "ui_api_privateEndpointName": "[toLower(concat('pep-',parameters('projectCode'),'-',parameters('environment'),'-dbwfe01'))]",
+        "browser_auth_privateEndpointName": "[toLower(concat('pep-',parameters('projectCode'),'-',parameters('environment'),'-dbwbe01'))]",
+        "ui_api_customNetworkInterfaceName": "[toLower(concat('nic',parameters('projectCode'),parameters('environment'),'dbwfe01'))]",
+        "browser_auth_customNetworkInterfaceName": "[toLower(concat('nic',parameters('projectCode'),parameters('environment'),'dbwbe01'))]",
+        "managedResourceGroupId": "[concat(subscription().id, '/resourceGroups/', variables('managedResourceGroupName'))]",
+        "managedResourceGroupName": "[concat('managed-rg-',variables('workspaceName'))]",
+        "pricingTier": "premium",
+        "enableNoPublicIp": true,
+        "publicNetworkAccess": "Disabled",
+        "requiredNsgRules": "NoAzureDatabricksRules",
+        "requireInfrastructureEncryption": true,
+        "databricksDefaultTag": {
+          "Name": "[variables('workspaceName')]"
+        }
+      },
+      "resources": [
+        {
+          "type": "Microsoft.Databricks/workspaces",
+          "apiVersion": "2022-04-01-preview",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('databricksDefaultTag'), parameters('combineTags'))]",
+          "name": "[variables('workspaceName')]",
+          "sku": {
+            "name": "[variables('pricingTier')]"
+          },
+          "properties": {
+            "ManagedResourceGroupId": "[variables('managedResourceGroupId')]",
+            "publicNetworkAccess": "[variables('publicNetworkAccess')]",
+            "requiredNsgRules": "[variables('requiredNsgRules')]",
+            "parameters": {
+              "enableNoPublicIp": {
+                "value": "[variables('enableNoPublicIp')]"
+              },
+              "customVirtualNetworkId": {
+                "value": "[parameters('vnetIdRef')]"
+              },
+              "customPublicSubnetName": {
+                "value": "[parameters('hostSubnetNameRef')]"
+              },
+              "requireInfrastructureEncryption": {
+                "value": "[variables('requireInfrastructureEncryption')]"
+              },
+              "customPrivateSubnetName": {
+                "value": "[parameters('containerSubnetNameRef')]"
+              }
+            }
+          }
+        },
+        {
+          "type": "Microsoft.Network/privateEndpoints",
+          "apiVersion": "2021-05-01",
+          "name": "[variables('ui_api_privateEndpointName')]",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Databricks/workspaces', variables('workspaceName'))]"
+          ],
+          "properties": {
+            "subnet": {
+              "id": "[parameters('webSubnetRef')]"
+            },
+            "privateLinkServiceConnections": [
+              {
+                "name": "[variables('ui_api_privateEndpointName')]",
+                "properties": {
+                  "privateLinkServiceId": "[resourceId('Microsoft.Databricks/workspaces', variables('workspaceName'))]",
+                  "groupIds": ["databricks_ui_api"]
+                }
+              }
+            ],
+            "customNetworkInterfaceName": "[variables('ui_api_customNetworkInterfaceName')]"
+          }
+        },
+        {
+          "type": "Microsoft.Network/privateEndpoints",
+          "apiVersion": "2021-05-01",
+          "name": "[variables('browser_auth_privateEndpointName')]",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Databricks/workspaces', variables('workspaceName'))]",
+            "[resourceId('Microsoft.Network/privateEndpoints', variables('ui_api_privateEndpointName'))]"
+          ],
+          "properties": {
+            "subnet": {
+              "id": "[parameters('webSubnetRef')]"
+            },
+            "privateLinkServiceConnections": [
+              {
+                "name": "[variables('browser_auth_privateEndpointName')]",
+                "properties": {
+                  "privateLinkServiceId": "[resourceId('Microsoft.Databricks/workspaces', variables('workspaceName'))]",
+                  "groupIds": ["browser_authentication"]
+                }
+              }
+            ],
+            "customNetworkInterfaceName": "[variables('browser_auth_customNetworkInterfaceName')]"
+          }
+        }
+      ]
+    },
+    "resourceGroup": "databricks_Rg",
+    "displayName": "Azure Databricks Creation with its Private Endpoints",
+    "parameters": {
+      "projectCode": {
+        "value": "[parameters('projectCode_assign')]"
+      },
+      "environment": {
+        "value": "[parameters('environment_assign')]"
+      },
+      "combineTags": {
+        "value": "[parameters('combineTags_assign')]"
+      },
+      "vnetIdRef": {
+        "value": "[artifacts('subnets').outputs.vnetId]"
+      },
+      "containerSubnetNameRef": {
+        "value": "[artifacts('subnets').outputs.databricksContainerSubnetName]"
+      },
+      "hostSubnetNameRef": {
+        "value": "[artifacts('subnets').outputs.databricksHostSubnetName]"
+      },
+      "webSubnetRef": {
+        "value": "[artifacts('subnets').outputs.webSubnetId]"
+      }
+    }
+  },
+  "type": "Microsoft.Blueprint/blueprints/artifacts",
+  "name": "databricks"
+}

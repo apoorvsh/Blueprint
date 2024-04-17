@@ -1,0 +1,46 @@
+{
+    "properties": {
+      "description": "This is a default template, please modify it.",
+      "targetScope": "subscription",
+      "parameters": {
+        "budgetName_assign": {
+            "type": "string"
+        },
+        "timeGrain_assign": {
+            "type": "string"
+        },
+        "budgetAmount_assign": {
+            "type": "int"
+        },
+        "budgetFirstThreshold_assign":{
+            "type": "int"
+        },
+        "contactEmails_assign": {
+            "type": "array"
+        },
+        "subBudgetName_assign": {
+            "type": "string"
+        },
+        "subTimeGrain_assign": {
+            "type": "string"
+        },
+        "subBudgetAmount_assign": {
+            "type": "int"
+        },
+        "subBudgetFirstThreshold_assign": {
+            "type": "int"
+        },
+        "subContactEmails_assign": {
+            "type": "array"
+        }
+      },
+      "resourceGroups": {
+        "budget_rg": {
+            "name": "apoorv-rg",
+            "location": "eastus"
+        }
+      }
+    },
+    "type": "Microsoft.Blueprint/blueprints"
+  }
+  

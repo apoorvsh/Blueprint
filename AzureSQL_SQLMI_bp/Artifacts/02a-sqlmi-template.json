@@ -1,0 +1,459 @@
+{
+  "kind": "template",
+  "type": "Microsoft.Blueprint/blueprints/artifacts",
+  "properties": {
+    "displayName": "SQL Managed Instance Deployment",
+    "description": "",
+    "dependsOn": [],
+    "template": {
+      "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "resourceTags": {
+          "type": "object"
+        },
+        "localBU": {
+          "type": "string",
+          "metadata": {
+            "displayName": "Prefix for the resource names deployed in this template"
+          }
+        },
+        "VNetResourceGroupName": {
+          "type": "string"
+        },
+        "VirtualNetworkName": {
+          "type": "string",
+          "metadata": {
+            "displayName": "VNet for VNet Endpoint Rules"
+          }
+        },
+        "SubnetName": {
+          "type": "string",
+          "metadata": {
+            "displayName": "Subnet for VNet Endpoint Rules"
+          }
+        },
+        "sqlAdministratorLogin": {
+          "type": "securestring",
+          "metadata": {
+            "description": "The administrator username of the Windows Server."
+          }
+        },
+        "sqlAdministratorPassword": {
+          "type": "securestring",
+          "metadata": {
+            "description": "The administrator password of the Windows Server."
+          }
+        },
+        "sqlAAD_adminUser": {
+          "type": "string",
+          "metadata": {
+            "displayName": "Login name of the Synapse server administrator.",
+            "description": "Username for admin"
+          }
+        },
+        "sqlAAD_adminSID": {
+          "type": "string",
+          "metadata": {
+            "displayName": "Synapse SID (object ID) of the server administrator. - globally unique identifier",
+            "description": "SID for admin"
+          }
+        },
+        "monitoringApproach": {
+          "type": "string",
+          "metadata": {
+            "description": "Organizational monitoring approach. For more info: https://docs.microsoft.com/en-us/azure/azure-monitor/platform/design-logs-deployment#important-considerations-for-an-access-control-strategy"
+          }
+        },
+        "decentralizedLogAnalytics_workspaceId": {
+          "type": "string",
+          "metadata": {
+            "description": "ResourceID of the Decentralized of Functional approach Log Analytics workspace in which resource logs should be saved."
+          }
+        },
+        "centralizedLogAnalytics_workspaceId": {
+          "type": "string",
+          "metadata": {
+            "displayName": "Log Analytics Workspace Id for all auditing and diagnostics",
+            "description": "Specifies the Log Analytics Workspace Resource ID that should be used for auditing and diagnostics."
+          },
+          "allowedValues": []
+        },
+        "deploymentEnvironment": {
+          "type": "string",
+          "metadata": {
+            "description": "Deployment environment. Production, QA & Development provide enhanced security and monitoring. Sanbox is meant for POC and short lived exploration only.  See the environment mapping to understand more details."
+          }
+        },
+        "monitorLogRetention": {
+          "type": "int",
+          "metadata": {
+            "displayName": "Metrics & Log Retention (days)",
+            "description": "The retention is days for auditing, diagnostic and metric logs per your organizations requirements. Default = 180 days"
+          }
+        },
+        "emailAddresses": {
+          "type": "array",
+          "metadata": {
+            "description": "Array of email addresses for receiving alerts, each corresponding to its appropriate database (by index in the array)"
+          }
+        },
+        "vaStorageRGName": {
+          "type": "string"
+        },
+        "vaStorageName": {
+          "type": "string"
+        },
+        "vaStorageEndpoint": {
+          "type": "string"
+        }
+      },
+      "variables": {
+        "sqlMIName": "[toLower(concat('sqlmi-', toUpper(substring(resourceGroup().location, sub(length(resourceGroup().location), 2), 2)),'-', parameters('localBU'), variables('environmentConfig')[parameters('deploymentEnvironment')].deploymentEnvironment, '01a5'))]",
+        "vnetId": "[resourceId(parameters('VNetResourceGroupName'),'Microsoft.Network/virtualNetworks', parameters('VirtualNetworkName'))]",
+        "subnetId": "[resourceId(parameters('VNetResourceGroupName'), 'Microsoft.Network/virtualNetworks/subnets', parameters('VirtualNetworkName'), parameters('SubnetName'))]",
+        "workspaceId": "[if(equals(parameters('monitoringApproach'), 'Decentralized'), parameters('decentralizedLogAnalytics_workspaceId'),parameters('centralizedLogAnalytics_workspaceId'))]",
+        "environmentConfig": {
+          "p": {
+            "sqlTier": "BusinessCritical",
+            "vCores": 8,
+            "name": "BC_G8IM",
+            "storageSizeInGB": 1024,
+            "zoneRedundant": false,
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "publicDataEndpointEnabled": false,
+            "storageAccountType": "GRS",
+            "deploymentEnvironment": "Prod"
+          },
+          "d": {
+            "sqlTier": "GeneralPurpose",
+            "vCores": 4,
+            "storageSizeInGB": 32,
+            "name": "GP_G8IM",
+            "zoneRedundant": false,
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "publicDataEndpointEnabled": false,
+            "storageAccountType": "ZRS",
+            "deploymentEnvironment": "Dev"
+          },
+          "q": {
+            "sqlTier": "GeneralPurpose",
+            "vCores": 8,
+            "zoneRedundant": false,
+            "storageSizeInGB": 1024,
+            "name": "GP_G8IM",
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "publicDataEndpointEnabled": false,
+            "storageAccountType": "ZRS",
+            "deploymentEnvironment": "QA"
+          },
+          "n": {
+            "sqlTier": "GeneralPurpose",
+            "vCores": 64,
+            "storageSizeInGB": 16384,
+            "name": "GP_G8IM",
+            "zoneRedundant": true,
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes",
+            "publicDataEndpointEnabled": false,
+            "storageAccountType": "ZRS",
+            "deploymentEnvironment": "NonProd"
+          },
+          "s": {
+            "sqlTier": "GeneralPurpose",
+            "vCores": 4,
+            "storageSizeInGB": 32,
+            "name": "GP_G8IM",
+            "zoneRedundant": false,
+            "AdvancedSecurity": "No",
+            "diagnostics": "No",
+            "publicDataEndpointEnabled": false,
+            "storageAccountType": "LRS",
+            "deploymentEnvironment": "Stage"
+          }
+        },
+        "securityStorageRoleUniqueId": "[guid(concat(parameters('vaStorageName'),variables('storageContainerPath')))]",
+        "storageBlobDataContributorRoleID": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+        "storageContainerPath": "[uri(parameters('vaStorageEndpoint'), 'sqlmiadvancedsecurity')]",
+        "accountSasProperties": {
+          "signedServices": "b",
+          "signedPermission": "rwdl",
+          "signedStart": "2023-01-01T00:00:01Z",
+          "signedExpiry": "2026-01-01T00:00:01Z",
+          "signedResourceTypes": "c",
+          "keyToSign": "key1",
+          "HttpProtocol": "https"
+        }
+        //"keyVaultSecretsRoleUniqueId": "[guid(concat(parameters('keyVaultResourceGroupName'),parameters('keyVaultName'),variables('sqlMIName')))]",
+        //"keyVaultSecretsUserRoleID": "4633458b-17de-408a-b874-0445c86b69e6" //Read Secrets only
+        //"keyVaultSecretsUserRoleID": "00482a5a-887f-4fb3-b363-3b7fe8e74483", //Full Secrets, Certificate management
+      },
+      "resources": [
+        {
+          "apiVersion": "2018-02-01",
+          "name": "pid-bcd6fdf3-b0d0-5123-b5c2-4db36514dd26",
+          "type": "Microsoft.Resources/deployments",
+          "properties": {
+            "mode": "Incremental",
+            "template": {
+              "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+              "contentVersion": "1.0.0.0",
+              "resources": []
+            }
+          }
+        },
+        {
+          "name": "[variables('sqlMIName')]",
+          "type": "Microsoft.Sql/managedInstances",
+          "apiVersion": "2022-05-01-preview",
+          "location": "[resourceGroup().location]",
+          "tags": "[parameters('resourceTags')]",
+          "identity": {
+            "type": "SystemAssigned"
+          },
+          "sku": {
+            "name": "[variables('environmentConfig')[parameters('deploymentEnvironment')].name]",
+            "tier": "[variables('environmentConfig')[parameters('deploymentEnvironment')].sqlTier]"
+          },
+          "properties": {
+            "administratorLogin": "[parameters('sqlAdministratorLogin')]",
+            "administratorLoginPassword": "[parameters('sqlAdministratorPassword')]",
+            "subnetId": "[variables('subnetId')]",
+            "licenseType": "LicenseIncluded",
+            "vCores": "[variables('environmentConfig')[parameters('deploymentEnvironment')].vCores]",
+            "storageSizeInGB": "[variables('environmentConfig')[parameters('deploymentEnvironment')].storageSizeInGB]",
+            "collation": "SQL_Latin1_General_CP1_CI_AS",
+            "publicDataEndpointEnabled": "[variables('environmentConfig')[parameters('deploymentEnvironment')].publicDataEndpointEnabled]",
+            "timezoneId": "Eastern Standard Time",
+            "hardwareFamily": "Gen8IM",
+            "maintenanceConfigurationId": "[concat('/subscriptions/',subscription().subscriptionid,'/providers/Microsoft.Maintenance/publicMaintenanceConfigurations/SQL_Default')]",
+            "minimalTlsVersion": "1.2",
+            "storageAccountType": "[variables('environmentConfig')[parameters('deploymentEnvironment')].storageAccountType]",
+            "zoneRedundant": "[variables('environmentConfig')[parameters('deploymentEnvironment')].zoneRedundant]"
+          },
+          "resources": [
+            /*{ //managed instance needs reader to azure ad. This can't execute unless that's applied by global admin. 
+              "name": "ActiveDirectory",
+              "type": "administrators",
+              "apiVersion": "2022-05-01-preview",
+              "dependsOn": [
+                "[variables('sqlMIName')]"
+              ],
+              "properties": {
+                "administratorType": "ActiveDirectory",
+                "login": "[parameters('sqlAAD_adminUser')]",
+                "sid": "[parameters('sqlAAD_adminSID')]"
+              }
+            },
+            {
+              "name": "Default",
+              "type": "azureADOnlyAuthentications",
+              "apiVersion": "2020-08-01-preview",
+              "dependsOn": [
+                "[variables('sqlMIName')]"//,
+                "[concat('Microsoft.Sql/managedInstances/',variables('sqlMIName'),'/administrators/ActiveDirectory')]"
+              ],
+              "properties": {
+                "azureADOnlyAuthentication": false
+              }
+            },*/
+            {
+              "condition": "[equals(variables('environmentConfig')[parameters('deploymentEnvironment')].AdvancedSecurity,'Yes')]",
+              "name": "Default",
+              "type": "vulnerabilityAssessments",
+              "apiVersion": "2022-05-01-preview",
+              "dependsOn": [
+                "[variables('sqlMIName')]",
+                "[concat('Microsoft.Sql/managedInstances/',variables('sqlMIName'),'/securityAlertPolicies/', 'Default')]"
+              ],
+              "properties": {
+                "storageAccountAccessKey": "[listKeys(resourceId(parameters('vaStorageRGName'),'Microsoft.Storage/storageAccounts/', parameters('vaStorageName')), '2019-04-01').keys[0].value]",
+                "storageContainerPath": "[variables('storageContainerPath')]",
+                //"storageContainerSasKey": "[listAccountSas(resourceId(parameters('vaStorageRGName'),'Microsoft.Storage/storageAccounts/', parameters('vaStorageName')), '2019-04-01', variables('accountSasProperties')).accountSasToken]",
+                "recurringScans": {
+                  "isEnabled": true,
+                  "emailSubscriptionAdmins": true,
+                  "emails": "[parameters('emailAddresses')]"
+                }
+              }
+            },
+            {
+              "condition": "[equals(variables('environmentConfig')[parameters('deploymentEnvironment')].AdvancedSecurity,'Yes')]",
+              "name": "Default",
+              "type": "securityAlertPolicies",
+              "apiVersion": "2020-11-01-preview",
+              "dependsOn": [
+                "[resourceId('Microsoft.Sql/managedInstances/',variables('sqlMIName'))]"
+              ],
+              "properties": {
+                "state": "Enabled",
+                "emailAccountAdmins": true,
+                "emailAddresses": "[parameters('emailAddresses')]",
+                "retentionDays": "[parameters('monitorLogRetention')]",
+                "storageEndpoint": "[parameters('vaStorageEndpoint')]",
+                "storageAccountAccessKey": "[listKeys(resourceId(parameters('vaStorageRGName'),'Microsoft.Storage/storageAccounts/', parameters('vaStorageName')), '2019-04-01').keys[0].value]"
+              }
+            },
+            {
+              "condition": "[equals(variables('environmentConfig')[parameters('deploymentEnvironment')].diagnostics,'Yes')]",
+              "name": "[concat('/microsoft.insights/','diagnostics')]",
+              "type": "providers/diagnosticSettings",
+              "apiVersion": "2017-05-01-preview",
+              "dependsOn": ["[variables('sqlMIName')]"],
+              "properties": {
+                "logs": [
+                  {
+                    "category": "ResourceUsageStats",
+                    "enabled": true,
+                    "retentionPolicy": {
+                      "enabled": true,
+                      "days": "[parameters('monitorLogRetention')]"
+                    }
+                  },
+                  {
+                    "category": "DevOpsOperationsAudit",
+                    "enabled": true,
+                    "retentionPolicy": {
+                      "enabled": true,
+                      "days": "[parameters('monitorLogRetention')]"
+                    }
+                  },
+                  {
+                    "category": "SQLSecurityAuditEvents",
+                    "enabled": true,
+                    "retentionPolicy": {
+                      "enabled": true,
+                      "days": "[parameters('monitorLogRetention')]"
+                    }
+                  }
+                ],
+                "workspaceId": "[variables('workspaceId')]"
+              }
+            }
+          ]
+        },
+        {
+          "apiVersion": "2019-05-01",
+          "name": "securityStorageRoleDeploymentResource",
+          "type": "Microsoft.Resources/deployments",
+          "resourceGroup": "[parameters('vaStorageRGName')]",
+          "dependsOn": ["[variables('sqlMIName')]"],
+          "properties": {
+            "mode": "Incremental",
+            "template": {
+              "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+              "contentVersion": "1.0.0.0",
+              "parameters": {},
+              "variables": {},
+              "resources": [
+                {
+                  "type": "Microsoft.Storage/storageAccounts/providers/roleAssignments",
+                  "apiVersion": "2018-09-01-preview",
+                  "name": "[concat(parameters('vaStorageName'), '/Microsoft.Authorization/', guid(concat(resourceGroup().id, '/', variables('storageBlobDataContributorRoleID'), '/', variables('sqlMIName'), '/', variables('securityStorageRoleUniqueId'))))]",
+                  "location": "[resourceGroup().location]",
+                  "properties": {
+                    "roleDefinitionId": "[resourceId('Microsoft.Authorization/roleDefinitions', variables('storageBlobDataContributorRoleID'))]",
+                    "principalId": "[reference(concat('Microsoft.Sql/managedInstances/', variables('sqlMIName')), '2019-06-01-preview', 'Full').identity.principalId]",
+                    "principalType": "ServicePrincipal"
+                  }
+                }
+              ]
+            }
+          }
+        } /*,
+        {
+          "apiVersion": "2019-05-01",
+          "name": "keyvaultRoleDeploymentResource",
+          "type": "Microsoft.Resources/deployments",
+          "resourceGroup": "[parameters('keyVaultResourceGroupName')]",
+          "dependsOn": [
+            "[variables('sqlMIName')]"
+          ],
+          "properties": {
+            "mode": "Incremental",
+            "template": {
+              "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+              "contentVersion": "1.0.0.0",
+              "parameters": {},
+              "variables": {},
+              "resources": [
+                {
+                  "type": "Microsoft.KeyVault/vaults/providers/roleAssignments",
+                  "apiVersion": "2018-09-01-preview",
+                  "name": "[concat(parameters('keyVaultName'), '/Microsoft.Authorization/',  guid(concat(resourceGroup().id, '/', variables('keyVaultSecretsUserRoleID'), '/', variables('sqlMIName'), '/', variables('keyVaultSecretsRoleUniqueId'))))]",
+                  "location": "[resourceGroup().location]",
+                  "properties": {
+                    "roleDefinitionId": "[resourceId('Microsoft.Authorization/roleDefinitions', variables('keyVaultSecretsUserRoleID'))]",
+                    "principalId": "[reference(concat('Microsoft.Sql/managedInstances/', variables('sqlMIName')), '2019-06-01-preview', 'Full').identity.principalId]",
+                    "principalType": "ServicePrincipal"
+                  }
+                }
+              ]
+            }
+          }
+        }*/
+      ],
+      "outputs": {}
+    },
+    "resourceGroup": "SQLServicesRG",
+    "parameters": {
+      "resourceTags": {
+        "value": "[parameters('resourceTags')]"
+      },
+      "localBU": {
+        "value": "[parameters('resourceNamePrefix')]"
+      },
+      "sqlAdministratorLogin": {
+        "value": "[parameters('sqlAdministratorLogin')]"
+      },
+      "sqlAdministratorPassword": {
+        "value": "[parameters('sqlAdministratorPassword')]"
+      },
+      "sqlAAD_adminUser": {
+        "value": "[parameters('sqlAAD_adminUser')]"
+      },
+      "sqlAAD_adminSID": {
+        "value": "[parameters('sqlAAD_adminSID')]"
+      },
+      "VNetResourceGroupName": {
+        "value": "[parameters('ExistingVNetRGName')]"
+      },
+      "VirtualNetworkName": {
+        "value": "[parameters('ExistingVNetName')]"
+      },
+      "SubnetName": {
+        "value": "[parameters('ExistingVNetSQLMISNName')]"
+      },
+      "monitoringApproach": {
+        "value": "[parameters('monitoringApproach')]"
+      },
+      "decentralizedLogAnalytics_workspaceId": {
+        "value": "[parameters('decentralizedLogAnalytics_workspaceId')]"
+      },
+      "centralizedLogAnalytics_workspaceId": {
+        "value": "[parameters('centralizedLogAnalytics_workspaceId')]"
+      },
+      "deploymentEnvironment": {
+        "value": "[parameters('deploymentEnvironment')]"
+      },
+      "monitorLogRetention": {
+        "value": "[parameters('monitorLogRetention')]"
+      },
+      "emailAddresses": {
+        "value": "[parameters('emailAddresses')]"
+      },
+      "vaStorageRGName": {
+        "value": "[parameters('vaStorageRGName')]"
+      },
+      "vaStorageName": {
+        "value": "[parameters('vaStorageName')]"
+      },
+      "vaStorageEndpoint": {
+        "value": "[parameters('vaStorageEndpoint')]"
+      }
+    }
+  }
+}

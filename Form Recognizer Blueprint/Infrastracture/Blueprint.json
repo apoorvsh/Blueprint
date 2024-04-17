@@ -1,0 +1,101 @@
+{
+  "properties": {
+    "description": "This is a default template, please modify it.",
+    "targetScope": "subscription",
+    "parameters": {
+      "NewOrExistingVNETDeployment": {
+        "type": "string",
+        "defaultValue": "new"
+      },
+      "ExistingVnetName": {
+        "type": "string",
+        "defaultValue": "apoorv-vnet"
+      },
+      "resourceTags": {
+        "type": "object",
+        "defaultValue": {
+          "Environment": "dwdev",
+          "ApplicationName": "RDP",
+          "Business Unit": "Analytics",
+          "ApplicationPurpose": "Data Platform",
+          "Resource Purpose": "Data Platform Core Services"
+        }
+      },
+      "combineTags": {
+        "type": "object",
+        "defaultValue": {
+          "Environment": "dwdev",
+          "ApplicationName": "RDP",
+          "Business Unit": "Analytics",
+          "ApplicationPurpose": "Data Platform",
+          "Resource Purpose": "Data Platform Core Services"
+        }
+      },
+      "projectCode": {
+        "type": "string",
+        "defaultValue": "dev"
+      },
+      "environment": {
+        "type": "string",
+        "defaultValue": "d"
+      },
+      "networkArchitectureApproach": {
+        "type": "string",
+        "defaultValue": "Federated"
+      },
+      "PrivateDNSIntegration": {
+        "type": "bool",
+        "defaultValue": true
+      },
+      "ExistingPrivateDNSId_cognitiveService": {
+        "type": "string",
+        "defaultValue": "/subscriptions/4ebd8350-9a7a-42f0-bc93-0eea92ca9757/resourceGroups/apoorv-rg/providers/Microsoft.Network/privateDnsZones/privatelink.azuredatabricks.net"
+      },
+      "networkAccessApproach": {
+        "type": "string",
+        "defaultValue": "Private"
+      },
+      "deploymentEnvironment": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Deployment Environment for Resources",
+          "description": "Select your deployment environment. Production, QA & Development provide enhanced security and monitoring. Sandbox is meant for POC and short lived exploration only.  See the environment mapping to understand more details."
+        },
+        "defaultValue": "p",
+        "allowedValues": ["p", "d", "q", "s", "dr"]
+      },
+      "resourceNameBU": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Resource Name BU",
+          "description": "Resource group and resource name BU. Lower case characters only and less than or equal to 8 characters"
+        },
+        "defaultValue": "dw",
+        "allowedValues": ["rdp", "dw", "ans", "dpi30"]
+      },
+      "centralizedLogAnalytics_workspaceId": {
+        "type": "string",
+        "defaultValue": "/subscriptions/4ebd8350-9a7a-42f0-bc93-0eea92ca9757/resourcegroups/apoorv-rg/providers/microsoft.operationalinsights/workspaces/apoorv-log"
+      },
+      "CorporateIP": {
+        "type": "array",
+        "defaultValue": ["103.137.84.186"]
+      },
+      "monitoringApproach": {
+        "type": "string",
+        "defaultValue": "Centralised"
+      }
+    },
+    "resourceGroups": {
+      "network_rg": {
+        "name": "rg-datalake-dev-network01",
+        "location": "eastus"
+      },
+      "databricks_rg": {
+        "name": "rg-datalake-dev-cognitive01",
+        "location": "eastus"
+      }
+    }
+  },
+  "type": "Microsoft.Blueprint/blueprints"
+}

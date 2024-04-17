@@ -1,0 +1,98 @@
+{
+  "identity": {
+    "type": "UserAssigned",
+    "userAssignedIdentities": {
+      "/subscriptions/8a21611a-c5d3-4127-a0e2-be72ad32026d/resourceGroups/RG-US-SynIDShare01/providers/Microsoft.ManagedIdentity/userAssignedIdentities/ID-US-SynShare01": {}
+    }
+  },
+  "location": "southcentralus",
+  "properties": {
+    "blueprintId": "/subscriptions/8a21611a-c5d3-4127-a0e2-be72ad32026d/providers/Microsoft.Blueprint/blueprints/Hanover_LogicAppsService_BP",
+    "resourceGroups": {
+      "AutomationRG": {
+        "name": "dve2-cl-data-apps-rg02"
+      }
+    },
+    "locks": {
+      "mode": "none"
+    },
+    "parameters": {
+      "centralizedLogAnalytics_workspaceId": {
+        "value": "N/A"
+      },
+      "decentralizedLogAnalytics_workspaceId": {
+        "value": "/subscriptions/8a21611a-c5d3-4127-a0e2-be72ad32026d/resourcegroups/rg-us-synsecshare01/providers/microsoft.operationalinsights/workspaces/log-us-synshare01"
+      },
+      "deploymentEnvironment": {
+        "value": "dv"
+      },
+      "PrivateDNSIntegration": {
+        "value": true
+      },
+      "ExistingVNetName": {
+        "value": "NET-US-SynDev01"
+      },
+      "ExistingVNetRGName": {
+        "value": "RG-US-SynNetDev01"
+      },
+      "ExistingVNetAppSNName": {
+        "value": "dve2-cl-vnet01-app01"
+      },
+      "ExistingVNetDataSNName": {
+        "value": "NET-US-SynDev01-data01"
+      },
+      "monitoringApproach": {
+        "value": "Decentralized"
+      },
+      "monitorLogRetention": {
+        "value": 365
+      },
+      "networkAccessApproach": {
+        "value": "Private"
+      },
+      "networkArchitectureApproach": {
+        "value": "Hub & Spoke"
+      },
+      "resourceLocation": {
+        "value": "southcentralus"
+      },
+      "resourceNameBU": {
+        "value": "cl"
+      },
+      "ExistingPrivateDNSId_app": {
+        "value": "/subscriptions/8a21611a-c5d3-4127-a0e2-be72ad32026d/resourceGroups/pv-dns-rg/providers/Microsoft.Network/privateDnsZones/privatelink.azurewebsites.net"
+      },
+      "ExistingPrivateDNSId_blob": {
+        "value": "/subscriptions/8a21611a-c5d3-4127-a0e2-be72ad32026d/resourceGroups/pv-dns-rg/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
+      },
+      "ExistingPrivateDNSId_file": {
+        "value": "/subscriptions/8a21611a-c5d3-4127-a0e2-be72ad32026d/resourceGroups/pv-dns-rg/providers/Microsoft.Network/privateDnsZones/privatelink.file.core.windows.net"
+      },
+      "ExistingPrivateDNSId_queue": {
+        "value": "/subscriptions/8a21611a-c5d3-4127-a0e2-be72ad32026d/resourceGroups/pv-dns-rg/providers/Microsoft.Network/privateDnsZones/privatelink.queue.core.windows.net"
+      },
+      "ExistingPrivateDNSId_table": {
+        "value": "/subscriptions/8a21611a-c5d3-4127-a0e2-be72ad32026d/resourceGroups/pv-dns-rg/providers/Microsoft.Network/privateDnsZones/privatelink.table.core.windows.net"
+      },
+      "storageSLARequirement": {
+        "Value": "12 nines"
+      },
+      "deploymentManagedIdentityName": {
+        "value": "ID-US-SynShare01"
+      },
+      "deploymentManagedIdentityRGName": {
+        "value": "RG-US-SynIDShare01"
+      },
+      "resourceTags": {
+        "value": {
+          "BusinessOwner": "Jackie Varanelli",
+          "BusinessUnit": "ENT",
+          "Environment": "non-prod",
+          "CostCenter": "356147",
+          "Resource Purpose": "Data Apps Services",
+          "Department": "Claims Analytics"
+        }
+      }
+    }
+  }
+}

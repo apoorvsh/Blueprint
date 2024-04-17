@@ -1,0 +1,90 @@
+{
+  "identity": {
+    "type": "UserAssigned",
+    "userAssignedIdentities": {
+      "/subscriptions/8a21611a-c5d3-4127-a0e2-be72ad32026d/resourceGroups/RG-US-SynIDShare01/providers/Microsoft.ManagedIdentity/userAssignedIdentities/ID-US-SynShare01": {}
+    }
+  },
+  "location": "southcentralus",
+  "properties": {
+    "blueprintId": "/subscriptions/8a21611a-c5d3-4127-a0e2-be72ad32026d/providers/Microsoft.Blueprint/blueprints/LN_SQLMIProductService_BP",
+    "resourceGroups": {
+      "SQLServicesRG": {
+        "name": "RG-US-BlcSQLQA01"
+      }
+    },
+    "locks": {
+      "mode": "none"
+    },
+    "parameters": {
+      "sqlAdministratorPassword": {
+        "reference": {
+          "keyVault": {
+            "id": "/subscriptions/8a21611a-c5d3-4127-a0e2-be72ad32026d/resourceGroups/RG-US-SynIDShare01/providers/Microsoft.KeyVault/vaults/KV-US-SynShare01r4"
+          },
+          "secretName": "password"
+        }
+      },
+      "sqlAdministratorLogin": {
+        "reference": {
+          "keyVault": {
+            "id": "/subscriptions/8a21611a-c5d3-4127-a0e2-be72ad32026d/resourceGroups/RG-US-SynIDShare01/providers/Microsoft.KeyVault/vaults/KV-US-SynShare01r4"
+          },
+          "secretName": "username"
+        }
+      },
+      "emailAddresses": {
+        "value": [
+          "arin.sharma@celebaltech.com",
+          "anshita.goyal@celebaltech.com"
+        ]
+      },
+      "centralizedLogAnalytics_workspaceId": {
+        "value": "NA"
+      },
+      "decentralizedLogAnalytics_workspaceId": {
+        "value": "/subscriptions/8a21611a-c5d3-4127-a0e2-be72ad32026d/resourcegroups/rg-us-synsecshare01/providers/microsoft.operationalinsights/workspaces/log-us-synshare01a1"
+      },
+      "deploymentEnvironment": {
+        "value": "q"
+      },
+      "ExistingVNetName": {
+        "value": "Net-US-SynQA01"
+      },
+      "ExistingVNetRGName": {
+        "value": "RG-US-SynNetQA01"
+      },
+      "ExistingVNetSQLMISNName": {
+        "value": "net-us-synqa01-mgmt01"
+      },
+      "monitoringApproach": {
+        "value": "Decentralized"
+      },
+      "monitorLogRetention": {
+        "value": 0
+      },
+      "resourceLocation": {
+        "value": "southcentralus"
+      },
+      "resourceNamePrefix": {
+        "value": "Blc"
+      },
+      "resourceTags": {
+        "value": {
+          "APP": "BLC",
+          "Owner": "William Stromer",
+          "ENV": "QA"
+        }
+      },
+      "vaStorageName": {
+        "value": "store3300"
+      },
+      "vaStorageRGName": {
+        "value": "RG-US-SynSecShare01"
+      },
+      "vaStorageEndpoint": {
+        "value": "https://store3300.blob.core.windows.net/"
+      }
+    }
+  }
+}

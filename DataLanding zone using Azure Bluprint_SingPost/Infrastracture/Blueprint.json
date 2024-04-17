@@ -1,0 +1,90 @@
+{
+  "properties": {
+    "description": "DataLanding Zone Blueprint",
+    "targetScope": "subscription",
+    "parameters": {
+      "projectCode_assign": {
+        "type": "string"
+      },
+      "environment_assign": {
+        "type": "string"
+      },
+      "combineTags_assign": {
+        "type": "object"
+      },
+      "location_assign": {
+        "type": "string",
+        "defaultValue": "eastus"
+      },
+      "nextHopIpAddress_assign": {
+        "type": "string",
+        "defaultValue": "172.22.200.132"
+      },
+      "existingVnetName_assign": {
+        "type": "string",
+        "defaultValue": "vnet-datalake-dev-datalake01"
+      },
+      "webSubnetAddressPrefix_assign": {
+        "type": "string",
+        "defaultValue": "10.0.1.0/24"
+      },
+      "dataSubnetAddressPrefix_assign": {
+        "type": "string",
+        "defaultValue": "10.0.2.0/24"
+      },
+      "computeSubnetAddressPrefix_assign": {
+        "type": "string",
+        "defaultValue": "10.0.3.0/24"
+      },
+      "databricksHostSubnetAddressPrefix_assign": {
+        "type": "string",
+        "defaultValue": "10.0.4.0/24"
+      },
+      "databricksContainerSubnetAddressPrefix_assign": {
+        "type": "string",
+        "defaultValue": "10.0.5.0/24"
+      },
+      "adminUsername_assign": {
+        "type": "secureString"
+      },
+      "adminPassword_assign": {
+        "type": "secureString"
+      },
+      "sqlAdminUser_assign": {
+        "type": "string"
+      },
+      "sqlAdminSID_assign": {
+        "type": "string"
+      },
+      "synapseAdminUser_assign": {
+        "type": "string"
+      },
+      "synaspeAdminSID_assign": {
+        "type": "string"
+      }
+    },
+    "resourceGroups": {
+      "network_Rg": {
+        "name": "rg-datalake-dev-network01",
+        "location": "[parameters('location_assign')]"
+      },
+      "databricks_Rg": {
+        "name": "rg-datalake-dev-databricks01",
+        "location": "[parameters('location_assign')]"
+      },
+      "compute_Rg": {
+        "name": "rg-datalake-dev-compute01",
+        "location": "[parameters('location_assign')]"
+      },
+      "dataPlatform_Rg": {
+        "name": "rg-datalake-dev-dataPlatform01",
+        "location": "[parameters('location_assign')]"
+      },
+      "management_Rg": {
+        "name": "rg-datalake-dev-mgmt01",
+        "location": "[parameters('location_assign')]"
+      }
+    }
+  },
+  "type": "Microsoft.Blueprint/blueprints"
+}

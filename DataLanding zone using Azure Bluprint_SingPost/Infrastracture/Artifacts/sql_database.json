@@ -1,0 +1,178 @@
+{
+  "kind": "template",
+  "properties": {
+    "dependsOn": ["subnets", "key_vault"],
+    "template": {
+      "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "projectCode": {
+          "type": "string",
+          "metadata": {
+            "description": "Project Code"
+          }
+        },
+        "environment": {
+          "type": "string",
+          "metadata": {
+            "description": "Environment of Project"
+          }
+        },
+        "combineTags": {
+          "type": "object",
+          "metadata": {
+            "discription": "Combine Resource Tags for All resources"
+          }
+        },
+        "dataSubnetRef": {
+          "type": "string",
+          "metadata": {
+            "description": "Referencing Data Subnet Id"
+          }
+        },
+        "adminUsername": {
+          "type": "securestring",
+          "metadata": {
+            "description": "Username for the SQl Server."
+          }
+        },
+        "adminPassword": {
+          "type": "secureString",
+          "metadata": {
+            "description": "Password for the SQl Server."
+          }
+        },
+        "sqlAdminUser": {
+          "type": "string",
+          "metadata": {
+            "description": "User e-mail Id required to make Azure Active Directory admin in Sql Admin"
+          }
+        },
+        "sqlAdminSID": {
+          "type": "string",
+          "metadata": {
+            "description": "User object Id required to make Azure Active Directory admin in Sql Admin"
+          }
+        }
+      },
+      "variables": {
+        "sqlServerName": "[toLower(concat('db-',parameters('projectCode'),'-',parameters('environment'),'-dp01a1'))]",
+        "sqlDbName": "[toLower(concat('db-',parameters('projectCode'),'-',parameters('environment'),'-dp01a1'))]",
+        "privateEndpointName": "[toLower(concat('pep-',parameters('projectCode'),'-',parameters('environment'),'-db01'))]",
+        "customNetworkInterfaceName": "[toLower(concat('nic',parameters('projectCode'),parameters('environment'),'db01'))]",
+        "publicNetworkAccess": "Enabled",
+        "restrictOutboundNetworkAccess": "Disabled",
+        "azureADOnlyAuthentication": false,
+        "skuName": "Basic",
+        "skuTier": "Basic",
+        "skuCapacity": 5,
+        "requestedBackupStorageRedundancy": "Local",
+        "privateEndpointDefaultTag": {
+          "Name": "[variables('privateEndpointName')]"
+        },
+        "sqlServerDefaultTag": {
+          "Name": "[variables('sqlServerName')]"
+        },
+        "sqlDbDefaultTag": {
+          "Name": "[variables('sqlDbName')]"
+        }
+      },
+      "resources": [
+        {
+          "type": "Microsoft.Sql/servers",
+          "apiVersion": "2022-02-01-preview",
+          "name": "[variables('sqlServerName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('sqlServerDefaultTag'), parameters('combineTags'))]",
+          "properties": {
+            "administratorLogin": "[parameters('adminUsername')]",
+            "administratorLoginPassword": "[parameters('adminPassword')]",
+            "publicNetworkAccess": "[variables('publicNetworkAccess')]",
+            "restrictOutboundNetworkAccess": "[variables('restrictOutboundNetworkAccess')]",
+            "administrators": {
+              "administratorType": "ActiveDirectory",
+              "login": "[parameters('sqlAdminUser')]",
+              "sid": "[parameters('sqlAdminSID')]",
+              "tenantId": "[subscription().tenantId]",
+              "azureADOnlyAuthentication": "[variables('azureADOnlyAuthentication')]"
+            }
+          }
+        },
+        {
+          "type": "Microsoft.Sql/servers/databases",
+          "apiVersion": "2022-02-01-preview",
+          "name": "[concat(variables('sqlServerName'),'/', variables('sqlDbName'))]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('sqlDbDefaultTag'), parameters('combineTags'))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]"
+          ],
+          "sku": {
+            "name": "[variables('skuName')]",
+            "tier": "[variables('skuTier')]",
+            "capacity": "[variables('skuCapacity')]"
+          },
+          "properties": {
+            "requestedBackupStorageRedundancy": "[variables('requestedBackupStorageRedundancy')]",
+            "zoneRedundant": false
+          }
+        },
+        {
+          "type": "Microsoft.Network/privateEndpoints",
+          "apiVersion": "2021-05-01",
+          "name": "[variables('privateEndpointName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('privateEndpointDefaultTag'), parameters('combineTags'))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]"
+          ],
+          "properties": {
+            "subnet": {
+              "id": "[parameters('dataSubnetRef')]"
+            },
+            "privateLinkServiceConnections": [
+              {
+                "name": "[variables('privateEndpointName')]",
+                "properties": {
+                  "privateLinkServiceId": "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]",
+                  "groupIds": ["sqlServer"]
+                }
+              }
+            ],
+            "customNetworkInterfaceName": "[variables('customNetworkInterfaceName')]"
+          }
+        }
+      ]
+    },
+    "resourceGroup": "dataPlatform_Rg",
+    "displayName": "creation of SQL Database with its Private Endpoints",
+    "parameters": {
+      "projectCode": {
+        "value": "[parameters('projectCode_assign')]"
+      },
+      "environment": {
+        "value": "[parameters('environment_assign')]"
+      },
+      "combineTags": {
+        "value": "[parameters('combineTags_assign')]"
+      },
+      "dataSubnetRef": {
+        "value": "[artifacts('subnets').outputs.dataSubnetId]"
+      },
+      "adminUsername": {
+        "value": "[parameters('adminUsername_assign')]"
+      },
+      "adminPassword": {
+        "value": "[parameters('adminPassword_assign')]"
+      },
+      "sqlAdminUser": {
+        "value": "[parameters('sqlAdminUser_assign')]"
+      },
+      "sqlAdminSID": {
+        "value": "[parameters('sqlAdminSID_assign')]"
+      }
+    }
+  },
+  "type": "Microsoft.Blueprint/blueprints/artifacts",
+  "name": "sql_database"
+}

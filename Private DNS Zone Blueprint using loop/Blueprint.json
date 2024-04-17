@@ -1,0 +1,21 @@
+{
+  "properties": {
+    "description": "This is a default template, please modify it.",
+    "targetScope": "subscription",
+    "parameters": {
+      "privateDnsZoneName": {
+        "type": "array"
+      },
+      "resourceLocation": {
+        "type": "string",
+        "defaultValue": "eastus2"
+      }
+    },
+    "resourceGroups": {
+      "privateDnsZone-Rg": {
+        "location": "[parameters('resourceLocation')]"
+      }
+    }
+  },
+  "type": "Microsoft.Blueprint/blueprints"
+}

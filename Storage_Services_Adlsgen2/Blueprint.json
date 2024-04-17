@@ -1,0 +1,248 @@
+{
+  "properties": {
+    "description": "Deploys an Azure Automation Account with Private Endpoints and enables a runbook for an existing PowerShell file within a storage account",
+    "displayName": "Azure Automation and RAzure Function Deployment for Automation",
+    "parameters": {
+      "PrivateDNSIntegration": {
+        "type": "bool",
+        "metadata": {
+          "displayName": "Optional: Integrate all private services with existing or new private DNS zones? (Recommended)",
+          "description": "If you are leveraging a Hub and Spoke networking approach with private DNS zones and DNS routing, you can register DNS entries with existing zones. This DNS Zone is for the private endpoint configurations. "
+        },
+        "defaultValue": true
+      },
+      "deploymentEnvironment": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Deployment Environment for Resources",
+          "description": "Select your deployment environment. Production, QA & Development provide enhanced security and monitoring. Sandbox is meant for POC and short lived exploration only.  See the environment mapping to understand more details."
+        },
+        "defaultValue": "d",
+        "allowedValues": [ 
+        "p",
+        "dv",
+        "q",
+        "pp",
+        "pr",
+        "prpr",
+        "rd"
+      ]
+      },
+      "deploymentManagedIdentityId": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Assignment User Assigned Identity Client ID",
+          "description": "The client ID of the preexisting Managed identity for executing Blueprint Deployments"
+        },
+        "defaultValue": "9628de8c-3d90-4430-bdc0-e4a17d2d7622"
+      },
+      "deploymentManagedIdentityName": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Assignment User Assigned Identity Name",
+          "description": "The name of the preexisting Managed identity for executing Blueprint Deployments"
+        },
+        "defaultValue": "armtemplatetestdeployment"
+      },
+      "deploymentManagedIdentityRGName": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Assignment User Assigned Identity Resource Group Name",
+          "description": "The resource group name which contains preexisting Managed identity for executing Blueprint Deployments"
+        },
+        "defaultValue": "Spyglass-Demo-default"
+      },
+      "ExistingPrivateDNSId_blob": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Optional: Existing Private DNS Zone Id for Azure  Storage (blob.core.windows.net)",
+          "description": "If you are leveraging a Hub and Spoke networking approach with private DNS zones and DNS routing, those zones should be created and associated with the hub network. This DNS Zone is for the private endpoint of accessing workspace linked Azure Blob Storage."
+        },
+        "defaultValue": "/subscriptions/eb898c3f-ff2b-4f11-8b0d-8413c7749c7d/resourceGroups/spyglass-demo-default/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
+      },
+      "ExistingPrivateDNSId_file": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Optional: Existing Private DNS Zone Id for Azure Storage (file.core.windows.net)",
+          "description": "If you are leveraging a Hub and Spoke networking approach with private DNS zones and DNS routing, those zones should be created and associated with the hub network. This DNS Zone is for the private endpoint of accessing workspace linked Azure Blob Storage."
+        },
+        "defaultValue": "/subscriptions/eb898c3f-ff2b-4f11-8b0d-8413c7749c7d/resourceGroups/spyglass-demo-default/providers/Microsoft.Network/privateDnsZones/privatelink.file.core.windows.net"
+      },
+      "ExistingPrivateDNSId_queue": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Optional: Existing Private DNS Zone Id for Azure Storage (queue.core.windows.net)",
+          "description": "If you are leveraging a Hub and Spoke networking approach with private DNS zones and DNS routing, those zones should be created and associated with the hub network. This DNS Zone is for the private endpoint of accessing workspace linked Azure Blob Storage."
+        },
+        "defaultValue": "/subscriptions/eb898c3f-ff2b-4f11-8b0d-8413c7749c7d/resourceGroups/spyglass-demo-default/providers/Microsoft.Network/privateDnsZones/privatelink.queue.core.windows.net"
+      },
+      "ExistingPrivateDNSId_table": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Optional: Existing Private DNS Zone Id for Azure Storage (table.core.windows.net)",
+          "description": "If you are leveraging a Hub and Spoke networking approach with private DNS zones and DNS routing, those zones should be created and associated with the hub network. This DNS Zone is for the private endpoint of accessing workspace linked Azure Blob Storage."
+        },
+        "defaultValue": "/subscriptions/eb898c3f-ff2b-4f11-8b0d-8413c7749c7d/resourceGroups/spyglass-demo-default/providers/Microsoft.Network/privateDnsZones/privatelink.table.core.windows.net"
+      },
+      "ExistingPrivateDNSId_dfs": {
+          "type": "string",
+          "metadata": {
+            "description": "If you are leveraging a Hub and Spoke networking approach with private DNS zones and DNS routing, those zones should be created and associated with the hub network"
+          }
+        },
+      "ExistingVNetDataSNName": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Existing virtual network data subnet name",
+          "description": "If you are leveraging an existing Virtual Network provide the virtual network subnet here for data services"
+        },
+        "defaultValue": "d-eastus2-syn-vnet01-data01"
+      },
+      "ExistingVNetName": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Existing virtual network name",
+          "description": "If you are leveraging an existing Virtual Network provide the name here"
+        },
+        "defaultValue": "d-eastus2-syn-vnet01"
+      },
+      "ExistingVNetRGName": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Existing virtual network resource group name",
+          "description": "If you are leveraging an existing Virtual Network provide the Resource Group name here"
+        },
+        "defaultValue": "baupost-dev-s1-eastus2-syn-network-rg"
+      },
+      "monitorLogRetention": {
+        "type": "int",
+        "metadata": {
+          "displayName": "Required: Metrics & Log Retention (days)",
+          "description": "The retention is days for auditing, diagnostic and metric logs per your organizations requirements. Default = 180 days"
+        },
+        "defaultValue": 365,
+        "allowedValues": []
+      },
+      "networkAccessApproach": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Azure Networking Access Approach",
+          "description": "Select your Organizational networking access approach. For public endpoint accessibility, choose 'Public' or 'Both'. For complete private connectivity with private endpoints only select 'Private'."
+        },
+        "defaultValue": "Private",
+        "allowedValues": ["Public", "Private", "Both"]
+      },
+      "networkArchitectureApproach": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Azure Networking Architecture Approach",
+          "description": "Select your Organizational networking architecture approach. For more info: https://docs.microsoft.com/en-us/azure/architecture/reference-architectures/hybrid-networking/hub-spoke"
+        },
+        "defaultValue": "Hub & Spoke",
+        "allowedValues": ["Hub & Spoke", "Federated"]
+      },
+      "resourceLocation": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: All Resource Location",
+          "description": "Location for all resources."
+        },
+        "defaultValue": "eastus2",
+        "allowedValues": [
+          "westus",
+          "eastus",
+          "eastus2",
+          "centralus",
+          "SouthCentralUS"
+        ]
+      },
+      "resourceNameBU": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Prefix for the resource names deployed in this template"
+        },
+        "defaultValue": "Syn",
+        "allowedValues": ["Syn", "Blc", "clms", "claps"]
+      },
+      "resourceTags": {
+        "defaultValue": {
+          "BU": "Synapse",
+          "CostCenter": "000000-Default",
+          "Environment": "Development",
+          "Department": "Information Technology",
+          "Application": "Information Technology",
+          "Client": "Baupost"
+        },
+        "metadata": {
+          "displayName": "Required: Resource Tags for all resources"
+        },
+        "type": "object"
+      },
+      "storageSLARequirement": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Storage SLA Requirement",
+          "description": "Required storage redundancy per your Organization SLA requirements. For example: 11 nines = 99.999999999% availability. For more ingo: https://docs.microsoft.com/en-us/azure/storage/common/storage-redundancy#summary-of-redundancy-options"
+        },
+        "defaultValue": "12 nines",
+        "allowedValues": [
+          "11 nines",
+          "12 nines",
+          "16 nines",
+          "16 nines & 12 nines failover",
+          "16 nines & Read Access",
+          "16 nines & 12 nines failover & Read Access"
+        ]
+      },
+      "keyVaultRGName": {
+            "type": "string",
+            "metadata": {
+                "description": "Specifies the name of the key vault resource group."
+            }
+        },
+        "keyVaultName": {
+            "type": "string",
+            "metadata": {
+                "description": "Specifies the name of the key vault."
+            }
+        },
+        "databricksPrinciplaID": {
+            "type": "string",
+            "metadata": {
+                "description": "Required: Pincipal ID of Azure Databricks."
+            }
+        },
+        "databricksName": {
+            "type": "string",
+            "metadata": {
+                "description": "Databricks Name"
+            }
+        },
+        "KeyVaultLocation": {
+          "type": "string",
+          "metadata": {
+              "description": "Specifies the Location of the key vault."
+          }
+      }
+    },
+    "resourceGroups": {
+      "DatabricksRG": {
+        "location": "[parameters('resourceLocation')]",
+        "metadata": {
+          "displayName": "Azure Databricks Resource Group"
+        },
+        "tags": {
+          "BusinessOwner": "[parameters('resourceTags').BusinessOwner]",
+          "BusinessUnit": "[parameters('resourceTags').BusinessUnit]",
+          "Environment": "[parameters('resourceTags').Environment]",
+          "CostCenter": "[parameters('resourceTags').CostCenter]",
+          "Resource Purpose": "Databricks Services",
+          "Department": "[parameters('resourceTags').Department]",
+          "Operation owner": "STEPKA, MARGO"
+        }
+      }
+    },
+    "targetScope": "subscription",
+    "type": "Microsoft.Blueprint/blueprints"
+  }
+}

@@ -1,0 +1,108 @@
+{
+  "identity": {
+    "type": "UserAssigned",
+    "userAssignedIdentities": {
+      "/subscriptions/4ebd8350-9a7a-42f0-bc93-0eea92ca9757/resourcegroups/dve-clms-core-identity-rg01/providers/Microsoft.ManagedIdentity/userAssignedIdentities/dve-clmscore01-id01": {}
+    }
+  },
+  "location": "eastus2",
+  "properties": {
+    "blueprintId": "/subscriptions/4ebd8350-9a7a-42f0-bc93-0eea92ca9757/providers/Microsoft.Blueprint/blueprints/Hanover_DatabaseService_BP",
+    "resourceGroups": {
+      "DataAppsRG": {
+        "name": "dve-clms-dataplatform-rg01"
+      }
+    },
+    "parameters": {
+      "azureSQLDatabase_adminADUser": {
+        "value": "anshita.goyal@celebaltech.com"
+      },
+      "azureSQLDatabase_adminPassword": {
+        "reference": {
+          "keyVault": {
+            "id": "/subscriptions/4ebd8350-9a7a-42f0-bc93-0eea92ca9757/resourceGroups/dve-clms-core-identity-rg01/providers/Microsoft.KeyVault/vaults/dve-clms-core-kv01a2"
+          },
+          "secretName": "dve-clms-core-sql-admin-pass"
+        }
+      },
+      "azureSQLDatabase_adminSID": {
+        "value": "ca4654cc-7d41-459b-bef6-74e561572072"
+      },
+      "azureSQLDatabase_adminUser": {
+        "reference": {
+          "keyVault": {
+            "id": "/subscriptions/4ebd8350-9a7a-42f0-bc93-0eea92ca9757/resourceGroups/dve-clms-core-identity-rg01/providers/Microsoft.KeyVault/vaults/dve-clms-core-kv01a2"
+          },
+          "secretName": "dve-clms-core-sql-admin"
+        }
+      },
+      "azureSQLDatabase_databaseNames": {
+        "value": ["dveclmsdp01_apps"]
+      },
+      "azureSQLDatabase_emailAddresses": {
+        "value": ["anshita.goyal@celebaltech.com"]
+      },
+      "centralizedLogAnalytics_workspaceId": {
+        "value": "NA"
+      },
+      "decentralizedLogAnalytics_workspaceId": {
+        "value": "/subscriptions/4ebd8350-9a7a-42f0-bc93-0eea92ca9757/resourcegroups/dve-clms-core-security-rg01/providers/microsoft.operationalinsights/workspaces/dve-clms-log01"
+      },
+      "deploymentEnvironment": {
+        "value": "dv"
+      },
+      "deploymentManagedIdentityName": {
+        "value": "dve-clmscore01-id01"
+      },
+      "deploymentManagedIdentityRGName": {
+        "value": "dve-clms-core-identity-rg01"
+      },
+      "ExistingPrivateDNSId_AzSQL": {
+        "value": "/subscriptions/4ebd8350-9a7a-42f0-bc93-0eea92ca9757/resourceGroups/npe-hubinf-rg01/providers/Microsoft.Network/privateDnsZones/privatelink.database.windows.net"
+      },
+      "ExistingVNetName": {
+        "value": "dve-clmsVnet01"
+      },
+      "ExistingVNetRGName": {
+        "value": "dve-clms-core-network-rg01"
+      },
+      "ExistingVNetDataSNName": {
+        "value": "dve-clmsVnet01-data01"
+      },
+      "monitoringApproach": {
+        "value": "Decentralized"
+      },
+      "monitorLogRetention": {
+        "value": 365
+      },
+      "networkAccessApproach": {
+        "value": "Private"
+      },
+      "networkArchitectureApproach": {
+        "value": "Hub & Spoke"
+      },
+      "resourceLocation": {
+        "value": "eastus2"
+      },
+      "resourceNameBU": {
+        "value": "clms"
+      },
+      "resourceTags": {
+        "value": {
+          "APP": "Synapse",
+          "Owner": "HR",
+          "Business Unit": "CLMS",
+          "ENV": "non prod",
+          "Resource Purpose": "Database Services",
+          "Project": "CLMS"
+        }
+      },
+      "securityStorageAccountName": {
+        "value": "dveclmssecbstore01a2"
+      },
+      "securityStorageResourceGroup": {
+        "value": "dve-clms-core-security-rg01"
+      }
+    }
+  }
+}

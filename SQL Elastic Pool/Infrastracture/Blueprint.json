@@ -1,0 +1,293 @@
+{
+  "properties": {
+    "description": "Deploys an Azure Automation Account with Private Endpoints and enables a runbook for an existing PowerShell file within a storage account",
+    "displayName": "Azure Automation and RAzure Function Deployment for Automation",
+    "parameters": {
+      "azureSQLDatabase_adminPassword": {
+        "type": "secureString",
+        "metadata": {
+          "displayName": "Required: Azure SQL - SQL Administrator Password",
+          "description": "Password for SQL admin"
+        },
+        "allowedValues": []
+      },
+      "azureSQLDatabase_adminSID": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: User SID (object ID) of the SQL administrator. - globally unique identifier",
+          "description": "AAD SID for SQL AD Administrator"
+        },
+        "allowedValues": []
+      },
+      "azureSQLDatabase_adminADUser": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Login name of the SQL administrator",
+          "description": "Username/UPN for SQL AD Administrator"
+        },
+        "defaultValue": "user1@example.com",
+        "allowedValues": []
+      },
+      "azureSQLDatabase_adminUser": {
+        "type": "secureString",
+        "metadata": {
+          "displayName": "Required: Azure SQL - SQL Administrator User",
+          "description": "Username for SQL admin"
+        },
+        "allowedValues": []
+      },
+      "azureSQLDatabase_databaseNames": {
+        "type": "array",
+        "metadata": {
+          "displayName": "Database Names (Azure SQL Database)",
+          "description": "Array of names for the SQL databases"
+        },
+        "defaultValue": [
+          "SSISDB",
+          "analytics"
+        ],
+        "allowedValues": []
+      },
+      "azureSQLDatabase_emailAddresses": {
+        "type": "array",
+        "metadata": {
+          "displayName": "Required: Email Addresses for Azure SQL Instances",
+          "description": "Array of email addresses for receiving alerts, each corresponding to its appropriate database (by index in the array)"
+        },
+        "defaultValue": [
+          "user1@example.com",
+          "user2@example.com"
+        ],
+        "allowedValues": []
+      },
+      "centralizedLogAnalytics_workspaceId": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Optional: Centralized Log Analytics Workspace Id for auditing and diagnostics",
+          "description": "Specifies the Log Analytics Workspace Resource ID that should be used for auditing and diagnostics if you have selected a Centralized or Functional monitoring approach."
+        },
+        "defaultValue": "/subscriptions/xxxxxxxxxxxxxxxxxxxxxxxx/resourcegroups/pc-loganalyticsws-rg01/providers/microsoft.operationalinsights/workspaces/pc-loganalyticsws01",
+        "allowedValues": []
+      },
+      "decentralizedLogAnalytics_workspaceId": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Optional: Decentralized Log Analytics Workspace Id for auditing and diagnostics",
+          "description": "Specifies the Log Analytics Workspace Resource ID that should be used for auditing and diagnostics if you have selected a Decentralized or Functional monitoring approach."
+        },
+        "defaultValue": "/subscriptions/xxxxxxxxxxxxxxxxxxxxxxxx/resourcegroups/pc-loganalyticsws-rg01/providers/microsoft.operationalinsights/workspaces/pc-loganalyticsws01",
+        "allowedValues": []
+      },
+      "deploymentEnvironment": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Deployment Environment for Resources",
+          "description": "Select your deployment environment. Production, QA & Development provide enhanced security and monitoring. Sandbox is meant for POC and short lived exploration only.  See the environment mapping to understand more details."
+        },
+        "defaultValue": "np",
+        "allowedValues": [
+          "p",
+          "np",
+          "pp",
+          "q",
+          "s",
+          "dr",
+          "dv"
+        ]
+      },
+      "deploymentManagedIdentityId": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Assignment User Assigned Identity Client ID",
+          "description": "The client ID of the preexisting Managed identity for executing Blueprint Deployments"
+        },
+        "defaultValue": "xxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "deploymentManagedIdentityName": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Assignment User Assigned Identity Name",
+          "description": "The name of the preexisting Managed identity for executing Blueprint Deployments"
+        },
+        "defaultValue": "clientsite-n-sub-edw-01"
+      },
+      "deploymentManagedIdentityRGName": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Assignment User Assigned Identity Resource Group Name",
+          "description": "The resource group name which contains preexisting Managed identity for executing Blueprint Deployments"
+        },
+        "defaultValue": "clientsite-e-n-edw-rgp-aut-01"
+      },
+      "ExistingPrivateDNSId_AzSQL": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Optional: Existing Private DNS Zone Id for Azure SQL (database.windows.net)",
+          "description": "If you are leveraging a Hub and Spoke networking approach with private DNS zones and DNS routing, those zones should be created and associated with the hub network"
+        },
+        "defaultValue": "N/A"
+      },
+      "ExistingVNetDataSNName": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Existing virtual network data subnet name",
+          "description": "If you are leveraging an existing Virtual Network provide the virtual network subnet here for data services"
+        },
+        "defaultValue": "Dc-DWVnet01-Rg01"
+      },
+      "ExistingVNetName": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Existing virtual network name",
+          "description": "If you are leveraging an existing Virtual Network provide the name here"
+        },
+        "defaultValue": "Dc-DWVnet01"
+      },
+      "ExistingVNetRGName": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Existing virtual network resource group name",
+          "description": "If you are leveraging an existing Virtual Network provide the Resource Group name here"
+        },
+        "defaultValue": "Dc-DWVnet01-Rg01"
+      },
+      "monitoringApproach": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Logging and Monitoring Approach",
+          "description": "Select your Organizational monitoring approach. For more info: https://docs.microsoft.com/en-us/azure/azure-monitor/platform/design-logs-deployment#important-considerations-for-an-access-control-strategy"
+        },
+        "defaultValue": "Decentralized",
+        "allowedValues": [
+          "Centralized",
+          "Decentralized",
+          "Functional",
+          "External"
+        ]
+      },
+      "monitorLogRetention": {
+        "type": "int",
+        "metadata": {
+          "displayName": "Required: Metrics & Log Retention (days)",
+          "description": "The retention is days for auditing, diagnostic and metric logs per your organizations requirements. Default = 180 days"
+        },
+        "defaultValue": 180,
+        "allowedValues": []
+      },
+      "networkAccessApproach": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Azure Networking Access Approach",
+          "description": "Select your Organizational networking access approach. For public endpoint accessibility, choose 'Public' or 'Both'. For complete private connectivity with private endpoints only select 'Private'."
+        },
+        "defaultValue": "Private",
+        "allowedValues": [
+          "Public",
+          "Private",
+          "Both"
+        ]
+      },
+      "networkArchitectureApproach": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Azure Networking Architecture Approach",
+          "description": "Select your Organizational networking architecture approach. For more info: https://docs.microsoft.com/en-us/azure/architecture/reference-architectures/hybrid-networking/hub-spoke"
+        },
+        "defaultValue": "Hub & Spoke",
+        "allowedValues": [
+          "Hub & Spoke",
+          "Federated"
+        ]
+      },
+      "resourceLocation": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: All Resource Location",
+          "description": "Location for all resources."
+        },
+        "defaultValue": "eastus2",
+        "allowedValues": [
+          "centralus",
+          "eastus2"
+        ]
+      },
+      "resourceNameBU": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Resource Name BU",
+          "description": "Resource group and resource name BU. Lower case characters only and less than or equal to 8 characters"
+        },
+        "defaultValue": "clms",
+        "allowedValues": [
+          "rdp",
+          "rdpapps",
+          "dw",
+          "ans",
+          "clms"
+        ]
+      },
+      "resourceTags": {
+        "defaultValue": {
+          "BU": "Information Technology",
+          "CostCenter": "000000-Default",
+          "Environment": "Development",
+          "Department": "Information Technology",
+          "Application": "Information Technology"
+        },
+        "metadata": {
+          "displayName": "Required: Resource Tags for all resources"
+        },
+        "type": "object"
+      },
+      "securityStorageAccountName": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Security Storage Account Name",
+          "description": "The storage account name where you store security scans for SQL and Synapse. This is typically deployed within the Synapse Analytics Data Landing Zone."
+        }
+      },
+      "securityStorageResourceGroup": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Security Storage Account Resource Group",
+          "description": "The storage account resource group name where you store security scans for SQL and Synapse. This is typically deployed within the Synapse Analytics Data Landing Zone."
+        }
+      },
+      "storageSLARequirement": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Storage SLA Requirement",
+          "description": "Required storage redundancy per your Organization SLA requirements. For example: 11 nines = 99.999999999% availability. For more ingo: https://docs.microsoft.com/en-us/azure/storage/common/storage-redundancy#summary-of-redundancy-options"
+        },
+        "defaultValue": "12 nines",
+        "allowedValues": [
+          "11 nines",
+          "12 nines",
+          "16 nines",
+          "16 nines & 12 nines failover",
+          "16 nines & Read Access",
+          "16 nines & 12 nines failover & Read Access"
+        ]
+      }
+    },
+    "resourceGroups": {
+      "DataAppsRG": {
+        "location": "[parameters('resourceLocation')]",
+        "metadata": {
+          "displayName": "Data App Services Resource Group"
+        },
+        "tags": {
+          "APP": "[parameters('resourceTags').APP]",
+          "Owner": "[parameters('resourceTags').Owner]",
+          "Business Unit": "CLMS",
+          "ENV": "[parameters('resourceTags').ENV]",
+          "Resource Purpose": "Database Services",
+          "Project": "[parameters('resourceTags').Project]"
+        },
+        "dependsOn": []
+      }
+    },
+    "targetScope": "subscription",
+    "type": "Microsoft.Blueprint/blueprints"
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "identity": {
+    "type": "SystemAssigned"
+  },
+  "location": "eastus",
+  "properties": {
+    "blueprintId": "/subscriptions/367722a2-667e-40e3-ba4b-1078993dddf3/providers/Microsoft.Blueprint/blueprints/DEV",
+    "resourceGroups": {},
+    "locks": {
+      "mode": "none"
+    },
+    "parameters": {
+      "projectCode_assign": {
+        "value": "DataLake"
+      },
+      "environment_assign": {
+        "value": "DEV"
+      },
+      "combineTags_assign": {
+        "value": {
+          "Environment": "DEV",
+          "Project Code": "Datalake",
+          "Owner": "Celebal-Singpost",
+          "Managed By": "Blueprint"
+        }
+      },
+      "adminUsername_assign": {
+        "reference": {
+          "keyVault": {
+            "id": "/subscriptions/367722a2-667e-40e3-ba4b-1078993dddf3/resourceGroups/rg-datalake-dev-dataPlatform01/providers/Microsoft.KeyVault/vaults/akvdatalakedevsecret01a1"
+          },
+          "secretName": "vmUserName"
+        }
+      },
+      "adminPassword_assign": {
+        "reference": {
+          "keyVault": {
+            "id": "/subscriptions/367722a2-667e-40e3-ba4b-1078993dddf3/resourceGroups/rg-datalake-dev-dataPlatform01/providers/Microsoft.KeyVault/vaults/akvdatalakedevsecret01a1"
+          },
+          "secretName": "vmPassword"
+        }
+      },
+      "sqlAdminUser_assign": {
+        "value": "akash@anshitagoyal181gmail.onmicrosoft.com"
+      },
+      "sqlAdminSID_assign": {
+        "value": "9b7522c3-2f5e-4e4a-9cf0-46274e60ee3e "
+      },
+      "synapseAdminUser_assign": {
+        "value": "akash@anshitagoyal181gmail.onmicrosoft.com"
+      },
+      "synaspeAdminSID_assign": {
+        "value": "9b7522c3-2f5e-4e4a-9cf0-46274e60ee3e "
+      }
+    }
+  }
+}

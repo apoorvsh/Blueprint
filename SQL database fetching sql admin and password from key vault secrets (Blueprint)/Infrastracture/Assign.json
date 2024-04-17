@@ -1,0 +1,31 @@
+{
+  "identity": {
+    "type": "SystemAssigned"
+  },
+  "location": "eastus",
+  "properties": {
+    "blueprintId": "/subscriptions/aa9021c8-9d60-4e88-8ba9-d8188788d9d5/providers/Microsoft.Blueprint/blueprints/keyvault",
+    "resourceGroups": {},
+    "locks": {
+      "mode": "none"
+    },
+    "parameters": {
+      "adminUsername": {
+        "reference": {
+          "keyVault": {
+            "id": "/subscriptions/aa9021c8-9d60-4e88-8ba9-d8188788d9d5/resourceGroups/apoorv-keyvault-rg/providers/Microsoft.KeyVault/vaults/apoorv5566key"
+          },
+          "secretName": "sqlUserName"
+        }
+      },
+      "adminPassword": {
+        "reference": {
+          "keyVault": {
+            "id": "/subscriptions/aa9021c8-9d60-4e88-8ba9-d8188788d9d5/resourceGroups/apoorv-keyvault-rg/providers/Microsoft.KeyVault/vaults/apoorv5566key"
+          },
+          "secretName": "sqlPassword"
+        }
+      }
+    }
+  }
+}

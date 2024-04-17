@@ -1,0 +1,78 @@
+{
+  "kind": "template",
+  "properties": {
+    "dependsOn": ["key_vault"],
+    "template": {
+      "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "adminUsername": {
+          "type": "securestring",
+          "metadata": {
+            "description": "Username for the SQl Server."
+          }
+        },
+        "adminPassword": {
+          "type": "secureString",
+          "metadata": {
+            "description": "Password for the SQl Server."
+          }
+        }
+      },
+      "variables": {
+        "sqlServerName": "apoorvSqlServer",
+        "sqlDbName": "apoorvSqlServerdb",
+        "publicNetworkAccess": "Enabled",
+        "restrictOutboundNetworkAccess": "Disabled",
+        "skuName": "Basic",
+        "skuTier": "Basic",
+        "skuCapacity": 5,
+        "requestedBackupStorageRedundancy": "Local"
+      },
+      "resources": [
+        {
+          "type": "Microsoft.Sql/servers",
+          "apiVersion": "2022-02-01-preview",
+          "name": "[variables('sqlServerName')]",
+          "location": "[resourceGroup().location]",
+          "properties": {
+            "administratorLogin": "[parameters('adminUsername')]",
+            "administratorLoginPassword": "[parameters('adminPassword')]",
+            "publicNetworkAccess": "[variables('publicNetworkAccess')]",
+            "restrictOutboundNetworkAccess": "[variables('restrictOutboundNetworkAccess')]"
+          }
+        },
+        {
+          "type": "Microsoft.Sql/servers/databases",
+          "apiVersion": "2022-02-01-preview",
+          "name": "[concat(variables('sqlServerName'),'/', variables('sqlDbName'))]",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]"
+          ],
+          "sku": {
+            "name": "[variables('skuName')]",
+            "tier": "[variables('skuTier')]",
+            "capacity": "[variables('skuCapacity')]"
+          },
+          "properties": {
+            "requestedBackupStorageRedundancy": "[variables('requestedBackupStorageRedundancy')]",
+            "zoneRedundant": false
+          }
+        }
+      ]
+    },
+    "resourceGroup": "key_vault-rg",
+    "displayName": "creation of sql database",
+    "parameters": {
+      "adminUsername": {
+        "value": "[parameters('adminUsername')]"
+      },
+      "adminPassword": {
+        "value": "[parameters('adminPassword')]"
+      }
+    }
+  },
+  "type": "Microsoft.Blueprint/blueprints/artifacts",
+  "name": "sql_database"
+}

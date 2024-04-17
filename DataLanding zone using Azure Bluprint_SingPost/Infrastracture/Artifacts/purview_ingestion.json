@@ -1,0 +1,164 @@
+{
+  "kind": "template",
+  "properties": {
+    "dependsOn": ["subnets", "purview"],
+    "template": {
+      "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "projectCode": {
+          "type": "string",
+          "metadata": {
+            "description": "Project Code"
+          }
+        },
+        "environment": {
+          "type": "string",
+          "metadata": {
+            "description": "Environment of Project"
+          }
+        },
+        "combineTags": {
+          "type": "object",
+          "metadata": {
+            "discription": "Combine Resource Tags for All resources"
+          }
+        },
+        "dataSubnetRef": {
+          "type": "string",
+          "metadata": {
+            "description": "Referencing Web Subnet Id"
+          }
+        },
+        "purviewManagedStorageAccountId": {
+          "type": "string",
+          "metadata": {
+            "description": "Referencing Managed Storage Account Id"
+          }
+        },
+        "purviewManagedEventHubId": {
+          "type": "string",
+          "metadata": {
+            "description": "Referencing Managed Event Hub NameSpace Id"
+          }
+        }
+      },
+      "variables": {
+        "blobPrivateEndpointName": "[toLower(concat('pep-',parameters('projectCode'),'-',parameters('environment'),'-ingestion01-blob'))]",
+        "queuePrivateEndpointName": "[toLower(concat('pep-',parameters('projectCode'),'-',parameters('environment'),'-ingestion01-queue'))]",
+        "eventHubPrivateEndpointName": "[toLower(concat('pep-',parameters('projectCode'),'-',parameters('environment'),'-ingestion01-namespace'))]",
+        "blobCustomNetworkInterfaceName": "[toLower(concat('nic',parameters('projectCode'),parameters('environment'),'ingestion01blob'))]",
+        "queueCustomNetworkInterfaceName": "[toLower(concat('nic',parameters('projectCode'),parameters('environment'),'ingestion01queue'))]",
+        "eventHubCustomNetworkInterfaceName": "[toLower(concat('nic',parameters('projectCode'),parameters('environment'),'ingestion01namespace'))]",
+        "blobPrivateEndpointDefaultTag": {
+          "Name": "[variables('blobPrivateEndpointName')]"
+        },
+        "queuePrivateEndpointDefaultTag": {
+          "Name": "[variables('queuePrivateEndpointName')]"
+        },
+        "eventHubPrivateEndpointDefaultTag": {
+          "Name": "[variables('eventHubPrivateEndpointName')]"
+        }
+      },
+      "resources": [
+        {
+          "type": "Microsoft.Network/privateEndpoints",
+          "apiVersion": "2021-05-01",
+          "name": "[variables('blobPrivateEndpointName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('blobPrivateEndpointDefaultTag'), parameters('combineTags'))]",
+          "properties": {
+            "subnet": {
+              "id": "[parameters('dataSubnetRef')]"
+            },
+            "privateLinkServiceConnections": [
+              {
+                "name": "[variables('blobPrivateEndpointName')]",
+                "properties": {
+                  "privateLinkServiceId": "[parameters('purviewManagedStorageAccountId')]",
+                  "groupIds": ["blob"]
+                }
+              }
+            ],
+            "customNetworkInterfaceName": "[variables('blobCustomNetworkInterfaceName')]"
+          }
+        },
+        {
+          "type": "Microsoft.Network/privateEndpoints",
+          "apiVersion": "2021-05-01",
+          "name": "[variables('queuePrivateEndpointName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('queuePrivateEndpointDefaultTag'), parameters('combineTags'))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Network/privateEndpoints', variables('blobPrivateEndpointName'))]"
+          ],
+          "properties": {
+            "subnet": {
+              "id": "[parameters('dataSubnetRef')]"
+            },
+            "privateLinkServiceConnections": [
+              {
+                "name": "[variables('queuePrivateEndpointName')]",
+                "properties": {
+                  "privateLinkServiceId": "[parameters('purviewManagedStorageAccountId')]",
+                  "groupIds": ["queue"]
+                }
+              }
+            ],
+            "customNetworkInterfaceName": "[variables('queueCustomNetworkInterfaceName')]"
+          }
+        },
+        {
+          "type": "Microsoft.Network/privateEndpoints",
+          "apiVersion": "2021-05-01",
+          "name": "[variables('eventHubPrivateEndpointName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('eventHubPrivateEndpointDefaultTag'), parameters('combineTags'))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Network/privateEndpoints', variables('blobPrivateEndpointName'))]",
+            "[resourceId('Microsoft.Network/privateEndpoints', variables('queuePrivateEndpointName'))]"
+          ],
+          "properties": {
+            "subnet": {
+              "id": "[parameters('dataSubnetRef')]"
+            },
+            "privateLinkServiceConnections": [
+              {
+                "name": "[variables('eventHubPrivateEndpointName')]",
+                "properties": {
+                  "privateLinkServiceId": "[parameters('purviewManagedEventHubId')]",
+                  "groupIds": ["namespace"]
+                }
+              }
+            ],
+            "customNetworkInterfaceName": "[variables('eventHubCustomNetworkInterfaceName')]"
+          }
+        }
+      ]
+    },
+    "resourceGroup": "management_Rg",
+    "displayName": "Purview Ingestion Private Endpoints",
+    "parameters": {
+      "projectCode": {
+        "value": "[parameters('projectCode_assign')]"
+      },
+      "environment": {
+        "value": "[parameters('environment_assign')]"
+      },
+      "combineTags": {
+        "value": "[parameters('combineTags_assign')]"
+      },
+      "dataSubnetRef": {
+        "value": "[artifacts('subnets').outputs.dataSubnetId]"
+      },
+      "purviewManagedStorageAccountId": {
+        "value": "[artifacts('purview').outputs.managedStorageAccountId]"
+      },
+      "purviewManagedEventHubId": {
+        "value": "[artifacts('purview').outputs.managedEventHubNameSpaceId]"
+      }
+    }
+  },
+  "type": "Microsoft.Blueprint/blueprints/artifacts",
+  "name": "purview_ingestion"
+}

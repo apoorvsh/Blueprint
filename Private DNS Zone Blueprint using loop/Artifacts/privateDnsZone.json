@@ -1,0 +1,38 @@
+{
+  "kind": "template",
+  "properties": {
+    "template": {
+      "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "privateDnsZoneName": {
+          "type": "array"
+        }
+      },
+      "variables": {},
+      "resources": [
+        {
+          "type": "Microsoft.Network/privateDnsZones",
+          "apiVersion": "2018-09-01",
+          "name": "[concat(parameters('privateDnsZoneName')[copyIndex()])]",
+          "location": "global",
+          "properties": {},
+          "copy": {
+            "name": "privateDnsZoneCopy",
+            "count": "[length(parameters('privateDnsZoneName'))]"
+          }
+        }
+      ],
+      "outputs": {}
+    },
+    "resourceGroup": "privateDnsZone-Rg",
+    "displayName": "Creation of Private DNS Zone",
+    "parameters": {
+      "privateDnsZoneName": {
+        "value": "[parameters('privateDnsZoneName')]"
+      }
+    }
+  },
+  "type": "Microsoft.Blueprint/blueprints/artifacts",
+  "name": "privateDnsZpne"
+}

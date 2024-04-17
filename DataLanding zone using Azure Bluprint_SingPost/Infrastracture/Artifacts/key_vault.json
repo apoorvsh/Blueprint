@@ -1,0 +1,154 @@
+{
+  "kind": "template",
+  "properties": {
+    "dependsOn": ["subnets"],
+    "template": {
+      "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "projectCode": {
+          "type": "string",
+          "metadata": {
+            "description": "Project Code"
+          }
+        },
+        "environment": {
+          "type": "string",
+          "metadata": {
+            "description": "Environment of Project"
+          }
+        },
+        "combineTags": {
+          "type": "object",
+          "metadata": {
+            "discription": "Combine Resource Tags for All resources"
+          }
+        },
+        "dataSubnetRef": {
+          "type": "string",
+          "metadata": {
+            "description": "Referencing Data Subnet Id"
+          }
+        }
+      },
+      "variables": {
+        "keyVaultName": "[toLower(concat('akv',parameters('projectCode'),parameters('environment'),'secret01a1'))]",
+        "privateEndpointName": "[toLower(concat('pep-',parameters('projectCode'),'-',parameters('environment'),'-kv01'))]",
+        "customNetworkInterfaceName": "[toLower(concat('nic',parameters('projectCode'),parameters('environment'),'kv01'))]",
+        "enabledForDeployment": false,
+        "enabledForDiskEncryption": false,
+        "enabledForTemplateDeployment": true,
+        "skuName": "standard",
+        "enableSoftDelete": false,
+        "enablePurgeProtection": true,
+        "publicNetworkAccess": "Disabled",
+        "keyVaultDefaultTag": {
+          "Name": "[variables('keyVaultName')]"
+        },
+        "keyVaultPrivateEndpointDefaultTag": {
+          "Name": "[variables('privateEndpointName')]"
+        }
+      },
+      "resources": [
+        {
+          "type": "Microsoft.KeyVault/vaults",
+          "apiVersion": "2021-11-01-preview",
+          "name": "[variables('keyVaultName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('keyVaultDefaultTag'), parameters('combineTags'))]",
+          "properties": {
+            "enabledForDeployment": "[variables('enabledForDeployment')]",
+            "enabledForDiskEncryption": "[variables('enabledForDiskEncryption')]",
+            "enabledForTemplateDeployment": "[variables('enabledForTemplateDeployment')]",
+            "enableSoftDelete": "[variables('enableSoftDelete')]",
+            "enablePurgeProtection": "[variables('enablePurgeProtection')]",
+            "publicNetworkAccess": "[variables('publicNetworkAccess')]",
+            "tenantId": "[subscription().tenantId]",
+            "accessPolicies": [],
+            "sku": {
+              "name": "[variables('skuName')]",
+              "family": "A"
+            },
+            "networkAcls": {
+              "defaultAction": "Deny",
+              "bypass": "AzureServices",
+              "ipRules": [],
+              "virtualNetworkRules": []
+            }
+          }
+        },
+        {
+          "type": "Microsoft.KeyVault/vaults/secrets",
+          "apiVersion": "2022-07-01",
+          "name": "[concat(variables('keyVaultName'),'/', 'vmUserName')]",
+          "properties": {
+            "value": "testuser"
+          },
+          "dependsOn": [
+            "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+          ]
+        },
+        {
+          "type": "Microsoft.KeyVault/vaults/secrets",
+          "apiVersion": "2022-07-01",
+          "name": "[concat(variables('keyVaultName'),'/', 'vmPassword')]",
+          "properties": {
+            "value": "Password@123"
+          },
+          "dependsOn": [
+            "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+          ]
+        },
+        {
+          "type": "Microsoft.Network/privateEndpoints",
+          "apiVersion": "2021-05-01",
+          "name": "[variables('privateEndpointName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('keyVaultPrivateEndpointDefaultTag'), parameters('combineTags'))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+          ],
+          "properties": {
+            "subnet": {
+              "id": "[parameters('dataSubnetRef')]"
+            },
+            "privateLinkServiceConnections": [
+              {
+                "name": "[variables('privateEndpointName')]",
+                "properties": {
+                  "privateLinkServiceId": "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+                  "groupIds": ["vault"]
+                }
+              }
+            ],
+            "customNetworkInterfaceName": "[variables('customNetworkInterfaceName')]"
+          }
+        }
+      ],
+      "outputs": {
+        "keyVaultName": {
+          "type": "string",
+          "value": "[variables('keyVaultName')]"
+        }
+      }
+    },
+    "resourceGroup": "dataPlatform_Rg",
+    "displayName": "Azure Key vault creation with its Private Endpoints",
+    "parameters": {
+      "projectCode": {
+        "value": "[parameters('projectCode_assign')]"
+      },
+      "environment": {
+        "value": "[parameters('environment_assign')]"
+      },
+      "combineTags": {
+        "value": "[parameters('combineTags_assign')]"
+      },
+      "dataSubnetRef": {
+        "value": "[artifacts('subnets').outputs.dataSubnetId]"
+      }
+    }
+  },
+  "type": "Microsoft.Blueprint/blueprints/artifacts",
+  "name": "key_vault"
+}

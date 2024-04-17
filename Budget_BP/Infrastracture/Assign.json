@@ -1,0 +1,46 @@
+{
+    "identity": {
+      "type": "SystemAssigned"
+    },
+    "location": "eastus",
+    "properties": {
+      "blueprintId": "/subscriptions/8a21611a-c5d3-4127-a0e2-be72ad32026d/providers/Microsoft.Blueprint/blueprints/budget",
+      "resourceGroups": {},
+      "locks": {
+        "mode": "none"
+      },
+      "parameters": {
+        "budgetName_assign": {
+            "value": "resourceBudget"
+        },
+        "subBudgetName_assign": {
+            "value": "subscriptionBudget"
+        },
+        "timeGrain_assign": {
+            "value": "Monthly"
+        },
+        "subTimeGrain_assign": {
+            "value": "Monthly"
+        },
+        "budgetAmount_assign": {
+            "value": 1000
+        },
+        "subBudgetAmount_assign": {
+            "value": 2000
+        },
+        "budgetFirstThreshold_assign": {
+            "value": 500
+        },
+        "subBudgetFirstThreshold_assign": {
+            "value": 1000
+        },
+        "contactEmails_assign": {
+            "value": [ "apoorv.sharma@celebaltech.com"]
+        },
+        "subContactEmails_assign": {
+            "value": [ "apoorv.sharma@celebaltech.com"]
+        }
+      }
+    }
+  }
+  

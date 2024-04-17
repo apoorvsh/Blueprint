@@ -1,0 +1,678 @@
+{
+  "kind": "template",
+  "type": "Microsoft.Blueprint/blueprints/artifacts",
+  "properties": {
+    "displayName": "Azure SQL Database - Data Applications",
+    "description": "",
+    "dependsOn": [],
+    "template": {
+      "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "resourceTags": {
+          "type": "object"
+        },
+        "localBU": {
+          "type": "string",
+          "metadata": {
+            "displayName": "BU for the resource names deployed in this template"
+          }
+        },
+        "networkAccessApproach": {
+          "type": "string",
+          "metadata": {
+            "displayName": "Azure Networking Access Approach",
+            "description": "Select your Organizational networking access approach. For public endpoint accessibility, choose 'Public' or 'Both'. For complete private connectivity with private endpoints only select 'Private'."
+          }
+        },
+        "networkArchitectureApproach": {
+          "type": "string",
+          "metadata": {
+            "description": "Conditional control for Private DNS Services"
+          }
+        },
+        "VNetResourceGroupName": {
+          "type": "string"
+        },
+        "VirtualNetworkName": {
+          "type": "string",
+          "metadata": {
+            "displayName": "VNet for VNet Endpoint Rules"
+          }
+        },
+        "ExistingPrivateDNSId_AzSQL": {
+          "type": "string",
+          "metadata": {
+            "displayName": "Existing private DNS Zone id for database.windows.net"
+          }
+        },
+        "SubnetName": {
+          "type": "string",
+          "metadata": {
+            "displayName": "Subnet for VNet Endpoint Rules"
+          }
+        },
+        "databaseNames": {
+          "type": "array",
+          "metadata": {
+            "description": "Array of names for the SQL databases"
+          }
+        },
+        "emailAddresses": {
+          "type": "array",
+          "metadata": {
+            "description": "Array of email addresses for receiving alerts, each corresponding to its appropriate database (by index in the array)"
+          }
+        },
+        "adminUser": {
+          "type": "SecureString",
+          "metadata": {
+            "description": "Username for admin"
+          }
+        },
+        "adminPassword": {
+          "type": "SecureString",
+          "metadata": {
+            "description": "Password for admin"
+          }
+        },
+        "azureSQLDatabase_ADAdminLogin": {
+          "type": "string",
+          "metadata": {
+            "description": "Azure Ad Administrator for Azure SQL"
+          }
+        },
+        "azureSQLDatabase_ADAdminLoginSID": {
+          "type": "string",
+          "metadata": {
+            "description": "Azure Ad Administrator SecureID for Azure SQL"
+          }
+        },
+        "monitoringApproach": {
+          "type": "string",
+          "metadata": {
+            "description": "Organizational monitoring approach. For more info: https://docs.microsoft.com/en-us/azure/azure-monitor/platform/design-logs-deployment#important-considerations-for-an-access-control-strategy"
+          }
+        },
+        "decentralizedLogAnalytics_workspaceId": {
+          "type": "string",
+          "metadata": {
+            "description": "ResourceID of the Decentralized of Functional approach Log Analytics workspace in which resource logs should be saved."
+          }
+        },
+        "centralizedLogAnalytics_workspaceId": {
+          "type": "string",
+          "metadata": {
+            "displayName": "Log Analytics Workspace Id for all auditing and diagnostics",
+            "description": "Specifies the Log Analytics Workspace Resource ID that should be used for auditing and diagnostics."
+          },
+          "allowedValues": []
+        },
+        "deploymentEnvironment": {
+          "type": "string",
+          "metadata": {
+            "description": "Deployment environment. Production, QA & Development provide enhanced security and monitoring. Sanbox is meant for POC and short lived exploration only.  See the environment mapping to understand more details."
+          }
+        },
+        "monitorLogRetention": {
+          "type": "int",
+          "metadata": {
+            "displayName": "SQL Auditing Log Retention (days)",
+            "description": "The retention is days for SQL auditing logs per your organizations requirements. Default = 180 days"
+          }
+        },
+        "vaStorageRGName": {
+          "type": "string"
+        },
+        "vaStorageName": {
+          "type": "string"
+        }
+      },
+      "variables": {
+        "databaseServerName": "[toLower(concat(parameters('deploymentEnvironment'),substring(resourceGroup().location, 0, 1),'-',parameters('localBU'),'-sql01a3'))]",
+        "sqlResourceId": "[resourceId('Microsoft.Sql/servers/elasticPools', variables('databaseServerName'))]",
+        "databaseNames": "[parameters('databaseNames')]",
+        "databaseServerLocation": "[resourceGroup().location]",
+        "databaseServerAdminLogin": "[parameters('adminUser')]",
+        "databaseServerAdminLoginPassword": "[parameters('adminPassword')]",
+        "emailAddresses": "[parameters('emailAddresses')]",
+        "securityBlobRoleAssignment": "[guid(variables('databaseServerName'))]",
+        "diagnosticSettingsName": "[concat('SQLSecurityAuditEvents_',guid(parameters('localBU')))]",
+        "tenantId": "[subscription().tenantId]",
+        "vnetId": "[resourceId(parameters('VNetResourceGroupName'),'Microsoft.Network/virtualNetworks', parameters('VirtualNetworkName'))]",
+        "subnetId": "[resourceId(parameters('VNetResourceGroupName'), 'Microsoft.Network/virtualNetworks/subnets', parameters('VirtualNetworkName'), parameters('SubnetName'))]",
+        "privateEndpointName": "[concat(variables('databaseServerName'),'link')]",
+        "sqlPrivateEndpointName": "[concat(variables('privateEndpointName'),'sqlServer')]",
+        "sqlPublicDNSZoneForwarder": "database.windows.net",
+        "sqlPrivateDnsZoneName": "[concat('privatelink.', variables('sqlPublicDNSZoneForwarder'))]",
+        "sqlPrivateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', variables('sqlPrivateDnsZoneName'))]",
+        "sqlPrivateEndpointId": "[resourceId('Microsoft.Network/privateEndpoints', variables('sqlPrivateEndpointName'))]",
+        "sqlPrivateEndpointGroupName": "sqlServer",
+        "sqlPrivateDnsZoneGroup": "[concat(variables('sqlPrivateEndpointName'),'/', variables('sqlPrivateEndpointGroupName'), 'PrivateDnsZoneGroup')]",
+        "MonitoringApproach": {
+          "Decentralized": {
+            "secWorkspaceID": "[parameters('decentralizedLogAnalytics_workspaceId')]",
+            "perfWorkspaceID": "[parameters('decentralizedLogAnalytics_workspaceId')]"
+          },
+          "Centralized": {
+            "secWorkspaceID": "[parameters('centralizedLogAnalytics_workspaceId')]",
+            "perfWorkspaceID": "[parameters('centralizedLogAnalytics_workspaceId')]"
+          },
+          "Functional": {
+            "secWorkspaceID": "[parameters('centralizedLogAnalytics_workspaceId')]",
+            "perfWorkspaceID": "[parameters('decentralizedLogAnalytics_workspaceId')]"
+          }
+        },
+        "NetworkingApproach": {
+          "Hub & Spoke": {
+            "sqlPrivateDnsZoneIdReg": "[parameters('ExistingPrivateDNSId_AzSQL')]"
+          },
+          "Federated": {
+            "sqlPrivateDnsZoneIdReg": "[variables('sqlPrivateDnsZoneId')]"
+          }
+        },
+        "networkAccessApproach": {
+          "Private": {
+            "PublicIP": false,
+            "PrivateEndpoint": true,
+            "PublicAccess": "Disabled"
+          },
+          "Both": {
+            "PublicIP": true,
+            "PrivateEndpoint": true,
+            "PublicAccess": "Enabled"
+          },
+          "Public": {
+            "PublicIP": true,
+            "PrivateEndpoint": false,
+            "PublicAccess": "Enabled"
+          }
+        },
+        "environmentConfig": {
+          "p": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes"
+          },
+          "pr": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes"
+          },
+          "pp": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes"
+          },
+          "dv": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes"
+          },
+          "np": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes"
+          },
+          "s": {
+            "AdvancedSecurity": "No",
+            "diagnostics": "No"
+          },
+          "dr": {
+            "AdvancedSecurity": "Yes",
+            "diagnostics": "Yes"
+          }
+        }
+      },
+      "resources": [
+        {
+          "apiVersion": "2018-02-01",
+          "name": "pid-bcd6fdf3-b0d0-5123-b5c2-4db36514dd26",
+          "type": "Microsoft.Resources/deployments",
+          "properties": {
+            "mode": "Incremental",
+            "template": {
+              "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+              "contentVersion": "1.0.0.0",
+              "resources": []
+            }
+          }
+        },
+        {
+          "type": "Microsoft.Sql/servers/elasticPools",
+          "apiVersion": "2020-11-01-preview",
+          "location": "[variables('databaseServerLocation')]",
+          "name": "[variables('databaseServerName')]",
+          "identity": {
+            "type": "SystemAssigned"
+          },
+          "properties": {
+            "administratorLogin": "[variables('databaseServerAdminLogin')]",
+            "administratorLoginPassword": "[variables('databaseServerAdminLoginPassword')]",
+            "version": "12.0",
+            "publicNetworkAccess": "[variables('networkAccessApproach')[parameters('networkAccessApproach')].PublicAccess]",
+            "minimalTlsVersion": "1.2"
+          },
+          "tags": "[parameters('resourceTags')]",
+          "resources": [
+            {
+              "type": "databases",
+              "apiVersion": "2017-03-01-preview",
+              "location": "[variables('databaseServerLocation')]",
+              "dependsOn": ["[variables('databaseServerName')]"],
+              "name": "master",
+              "tags": "[parameters('resourceTags')]",
+              "properties": {}
+            },
+            {
+              "condition": "[equals(variables('environmentConfig')[parameters('deploymentEnvironment')].AdvancedSecurity,'Yes')]",
+              "apiVersion": "2017-03-01-preview",
+              "type": "securityAlertPolicies",
+              "dependsOn": ["[variables('databaseServerName')]"],
+              "name": "serverDefault",
+              "properties": {
+                "state": "Enabled",
+                "emailAddresses": "[variables('emailAddresses')]",
+                "emailAccountAdmins": true,
+                "retentionDays": "[parameters('monitorLogRetention')]"
+              }
+            },
+            {
+              "name": "activeDirectory",
+              "type": "administrators",
+              "apiVersion": "2014-04-01",
+              "dependsOn": ["[variables('databaseServerName')]"],
+              "properties": {
+                "administratorType": "ActiveDirectory",
+                "login": "[parameters('azureSQLDatabase_ADAdminLogin')]",
+                "sid": "[parameters('azureSQLDatabase_ADAdminLoginSID')]",
+                "tenantId": "[variables('tenantId')]"
+              }
+            },
+            {
+              "condition": "[equals(variables('environmentConfig')[parameters('deploymentEnvironment')].diagnostics,'Yes')]",
+              "type": "databases/providers/diagnosticSettings",
+              "name": "[concat('master/microsoft.insights/',variables('diagnosticSettingsName'))]",
+              "dependsOn": [
+                "[variables('databaseServerName')]",
+                "[concat('Microsoft.Sql/servers/elasticPools/', variables('databaseServerName'), '/databases/master')]"
+              ],
+              "apiVersion": "2017-05-01-preview",
+              "properties": {
+                "name": "[variables('diagnosticSettingsName')]",
+                "workspaceId": "[variables('MonitoringApproach')[parameters('monitoringApproach')].secWorkspaceID]",
+                "logs": [
+                  {
+                    "category": "SQLSecurityAuditEvents",
+                    "enabled": true,
+                    "retentionPolicy": {
+                      "days": "[parameters('monitorLogRetention')]",
+                      "enabled": true
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "apiVersion": "2017-05-10",
+          "name": "nestedTemplate2",
+          "type": "Microsoft.Resources/deployments",
+          "resourceGroup": "[parameters('vaStorageRGName')]",
+          "dependsOn": ["[variables('databaseServerName')]"],
+          "properties": {
+            "mode": "Incremental",
+            "template": {
+              "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+              "contentVersion": "1.0.0.0",
+              "parameters": {},
+              "variables": {},
+              "resources": [
+                {
+                  "name": "[variables('securityBlobRoleAssignment')]",
+                  "type": "Microsoft.Authorization/roleAssignments",
+                  "apiVersion": "2018-09-01-preview",
+                  "properties": {
+                    "roleDefinitionId": "/providers/Microsoft.Authorization/roleDefinitions/ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+                    "principalId": "[reference(resourceId('Microsoft.Sql/servers/elasticPools/',variables('databaseServerName')), '2015-05-01-preview', 'Full').identity.principalId]"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "condition": "[equals(variables('environmentConfig')[parameters('deploymentEnvironment')].AdvancedSecurity,'Yes')]",
+          "name": "[concat(variables('databaseServerName'),'/advancedsecurity')]",
+          "type": "Microsoft.Sql/servers/elasticPools/vulnerabilityAssessments",
+          "dependsOn": ["nestedTemplate2"],
+          "apiVersion": "2018-06-01-preview",
+          "properties": {
+            "storageContainerPath": "[uri(reference(resourceId(parameters('vaStorageRGName'),'Microsoft.Storage/storageAccounts/', parameters('vaStorageName')), '2016-01-01').primaryEndpoints.blob, 'sqlvascans')]",
+            "storageAccountAccessKey": "[listKeys(resourceId(parameters('vaStorageRGName'),'Microsoft.Storage/storageAccounts/', parameters('vaStorageName')), '2019-04-01').keys[0].value]",
+            "recurringScans": {
+              "isEnabled": true,
+              "emailSubscriptionAdmins": false,
+              "emails": "[parameters('emailAddresses')]"
+            }
+          }
+        },
+        {
+          "condition": "[equals(variables('environmentConfig')[parameters('deploymentEnvironment')].AdvancedSecurity,'Yes')]",
+          "name": "[concat(variables('databaseServerName'),'/default')]",
+          "type": "Microsoft.Sql/servers/elasticPools/auditingSettings",
+          "apiVersion": "2017-03-01-preview",
+          "dependsOn": ["nestedTemplate2"],
+          "properties": {
+            "state": "Enabled",
+            "storageEndpoint": "[reference(resourceId(parameters('vaStorageRGName'),'Microsoft.Storage/storageAccounts/', parameters('vaStorageName')), '2016-01-01').primaryEndpoints.blob]",
+            "storageAccountAccessKey": "[listKeys(resourceId(parameters('vaStorageRGName'),'Microsoft.Storage/storageAccounts/', parameters('vaStorageName')), '2019-04-01').keys[0].value]",
+            "retentionDays": "[parameters('monitorLogRetention')]",
+            "auditActionsAndGroups": [
+              "BATCH_COMPLETED_GROUP",
+              "SUCCESSFUL_DATABASE_AUTHENTICATION_GROUP",
+              "FAILED_DATABASE_AUTHENTICATION_GROUP"
+            ],
+            "isStorageSecondaryKeyInUse": true,
+            "isAzureMonitorTargetEnabled": true
+          }
+        },
+        {
+          "apiVersion": "2017-10-01-preview",
+          "type": "Microsoft.Sql/servers/elasticPools/databases",
+          "sku": {
+            "name": "S0",
+            "tier": "Standard"
+          },
+          "kind": "v12.0,user",
+          "location": "[variables('databaseServerLocation')]",
+          "name": "[concat(string(variables('databaseServerName')), '/', string(variables('databaseNames')[copyIndex()]))]",
+          "dependsOn": [
+            "[concat('Microsoft.Sql/servers/elasticPools/', variables('databaseServerName'))]"
+          ],
+          "tags": "[parameters('resourceTags')]",
+          "copy": {
+            "name": "databaseCopy",
+            "count": "[length(variables('databaseNames'))]"
+          },
+          "properties": {},
+          "resources": [
+            {
+              "comments": "Transparent Data Encryption",
+              "name": "current",
+              "type": "transparentDataEncryption",
+              "apiVersion": "2014-04-01-preview",
+              "properties": {
+                "status": "Enabled"
+              },
+              "dependsOn": [
+                "[concat('Microsoft.Sql/servers/elasticPools/', variables('databaseServerName'), '/databases/', variables('databaseNames')[copyIndex()])]"
+              ]
+            },
+            {
+              "condition": "[equals(variables('environmentConfig')[parameters('deploymentEnvironment')].diagnostics,'Yes')]",
+              "name": "[concat('/microsoft.insights/sqlDiagnostics','_Perf',copyIndex())]",
+              "type": "providers/diagnosticSettings",
+              "apiVersion": "2017-05-01-preview",
+              "dependsOn": [
+                "[concat('Microsoft.Sql/servers/elasticPools/', variables('databaseServerName'), '/databases/', variables('databaseNames')[copyIndex()])]"
+              ],
+              "properties": {
+                "metrics": [
+                  {
+                    "category": "Basic",
+                    "enabled": true,
+                    "retentionPolicy": {
+                      "enabled": true,
+                      "days": "[parameters('monitorLogRetention')]"
+                    }
+                  },
+                  {
+                    "category": "InstanceAndAppAdvanced",
+                    "enabled": true,
+                    "retentionPolicy": {
+                      "enabled": true,
+                      "days": "[parameters('monitorLogRetention')]"
+                    }
+                  },
+                  {
+                    "category": "WorkloadManagement",
+                    "enabled": true,
+                    "retentionPolicy": {
+                      "enabled": true,
+                      "days": "[parameters('monitorLogRetention')]"
+                    }
+                  }
+                ],
+                "logs": [
+                  {
+                    "category": "SQLInsights",
+                    "enabled": true,
+                    "retentionPolicy": {
+                      "enabled": true,
+                      "days": "[parameters('monitorLogRetention')]"
+                    }
+                  },
+                  {
+                    "category": "AutomaticTuning",
+                    "enabled": true,
+                    "retentionPolicy": {
+                      "enabled": true,
+                      "days": "[parameters('monitorLogRetention')]"
+                    }
+                  },
+                  {
+                    "category": "QueryStoreRuntimeStatistics",
+                    "enabled": true,
+                    "retentionPolicy": {
+                      "enabled": true,
+                      "days": "[parameters('monitorLogRetention')]"
+                    }
+                  },
+                  {
+                    "category": "QueryStoreWaitStatistics",
+                    "enabled": true,
+                    "retentionPolicy": {
+                      "enabled": true,
+                      "days": "[parameters('monitorLogRetention')]"
+                    }
+                  },
+                  {
+                    "category": "Errors",
+                    "enabled": true,
+                    "retentionPolicy": {
+                      "enabled": true,
+                      "days": "[parameters('monitorLogRetention')]"
+                    }
+                  },
+                  {
+                    "category": "DatabaseWaitStatistics",
+                    "enabled": true,
+                    "retentionPolicy": {
+                      "enabled": true,
+                      "days": "[parameters('monitorLogRetention')]"
+                    }
+                  },
+                  {
+                    "category": "Timeouts",
+                    "enabled": true,
+                    "retentionPolicy": {
+                      "enabled": true,
+                      "days": "[parameters('monitorLogRetention')]"
+                    }
+                  },
+                  {
+                    "category": "Blocks",
+                    "enabled": true,
+                    "retentionPolicy": {
+                      "enabled": true,
+                      "days": "[parameters('monitorLogRetention')]"
+                    }
+                  },
+                  {
+                    "category": "Deadlocks",
+                    "enabled": true,
+                    "retentionPolicy": {
+                      "enabled": true,
+                      "days": "[parameters('monitorLogRetention')]"
+                    }
+                  }
+                ],
+                "workspaceId": "[variables('MonitoringApproach')[parameters('monitoringApproach')].perfWorkspaceID]"
+              }
+            }
+          ]
+        },
+        {
+          "condition": "[and(equals(parameters('networkArchitectureApproach'),'Federated'),variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint)]",
+          "type": "Microsoft.Network/privateDnsZones",
+          "apiVersion": "2018-09-01",
+          "name": "[variables('sqlPrivateDnsZoneName')]",
+          "location": "global",
+          "tags": "[parameters('resourceTags')]",
+          "properties": {
+            "maxNumberOfRecordSets": 25000,
+            "maxNumberOfVirtualNetworkLinks": 1000,
+            "maxNumberOfVirtualNetworkLinksWithRegistration": 100
+          }
+        },
+        {
+          "condition": "[and(equals(parameters('networkArchitectureApproach'),'Federated'),variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint)]",
+          "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+          "apiVersion": "2018-09-01",
+          "name": "[concat(variables('sqlPrivateDnsZoneName'), '/link_to_', toLower(parameters('virtualNetworkName')))]",
+          "location": "global",
+          "tags": "[parameters('resourceTags')]",
+          "dependsOn": ["[variables('sqlPrivateDnsZoneId')]"],
+          "properties": {
+            "registrationEnabled": false,
+            "virtualNetwork": {
+              "id": "[variables('vnetId')]"
+            }
+          }
+        },
+        {
+          "condition": "[variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint]",
+          "type": "Microsoft.Network/privateEndpoints",
+          "apiVersion": "2020-04-01",
+          "name": "[variables('sqlPrivateEndpointName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[parameters('resourceTags')]",
+          "dependsOn": ["[variables('sqlResourceId')]"],
+          "properties": {
+            "privateLinkServiceConnections": [
+              {
+                "name": "[variables('sqlPrivateEndpointName')]",
+                "properties": {
+                  "privateLinkServiceId": "[variables('sqlResourceId')]",
+                  "groupIds": ["[variables('sqlPrivateEndpointGroupName')]"]
+                }
+              }
+            ],
+            "subnet": {
+              "id": "[variables('subnetId')]"
+            },
+            "customDnsConfigs": [
+              {
+                "fqdn": "[concat(variables('databaseServerName'), variables('sqlPublicDNSZoneForwarder'))]"
+              }
+            ]
+          }
+        },
+        {
+          "condition": "[variables('networkAccessApproach')[parameters('networkAccessApproach')].PrivateEndpoint]",
+          "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+          "apiVersion": "2020-03-01",
+          "name": "[variables('sqlPrivateDnsZoneGroup')]",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[variables('sqlPrivateDnsZoneId')]",
+            "[variables('sqlPrivateEndpointId')]"
+          ],
+          "properties": {
+            "privateDnsZoneConfigs": [
+              {
+                "name": "dnsConfig",
+                "properties": {
+                  "privateDnsZoneId": "[variables('NetworkingApproach')[parameters('networkArchitectureApproach')].sqlPrivateDnsZoneIdReg]"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "outputs": {
+        "serverName": {
+          "type": "string",
+          "value": "[variables('databaseServerName')]"
+        },
+        "serverRGName": {
+          "type": "string",
+          "value": "[resourceGroup().name]"
+        }
+      }
+    },
+    "resourceGroup": "DataAppsRG",
+    "parameters": {
+      "resourceTags": {
+        "value": "[parameters('resourceTags')]"
+      },
+      "localBU": {
+        "value": "[parameters('resourceNameBU')]"
+      },
+      "databaseNames": {
+        "value": "[parameters('azureSQLDatabase_databaseNames')]"
+      },
+      "emailAddresses": {
+        "value": "[parameters('azureSQLDatabase_emailAddresses')]"
+      },
+      "adminUser": {
+        "value": "[parameters('azureSQLDatabase_adminUser')]"
+      },
+      "adminPassword": {
+        "value": "[parameters('azureSQLDatabase_adminPassword')]"
+      },
+      "azureSQLDatabase_ADAdminLoginSID": {
+        "value": "[parameters('azureSQLDatabase_adminSID')]"
+      },
+      "azureSQLDatabase_ADAdminLogin": {
+        "value": "[parameters('azureSQLDatabase_adminADUser')]"
+      },
+      "networkAccessApproach": {
+        "value": "[parameters('networkAccessApproach')]"
+      },
+      "networkArchitectureApproach": {
+        "value": "[parameters('networkArchitectureApproach')]"
+      },
+      "VNetResourceGroupName": {
+        "value": "[parameters('ExistingVNetRGName')]"
+      },
+      "VirtualNetworkName": {
+        "value": "[parameters('ExistingVNetName')]"
+      },
+      "SubnetName": {
+        "value": "[parameters('ExistingVNetDataSNName')]"
+      },
+      "ExistingPrivateDNSId_AzSQL": {
+        "value": "[parameters('ExistingPrivateDNSId_AzSQL')]"
+      },
+      "monitorLogRetention": {
+        "value": "[parameters('monitorLogRetention')]"
+      },
+      "monitoringApproach": {
+        "value": "[parameters('monitoringApproach')]"
+      },
+      "decentralizedLogAnalytics_workspaceId": {
+        "value": "[parameters('decentralizedLogAnalytics_workspaceId')]"
+      },
+      "centralizedLogAnalytics_workspaceId": {
+        "value": "[parameters('centralizedLogAnalytics_workspaceId')]"
+      },
+      "deploymentEnvironment": {
+        "value": "[parameters('deploymentEnvironment')]"
+      },
+      "vaStorageRGName": {
+        "value": "[parameters('securityStorageResourceGroup')]"
+      },
+      "vaStorageName": {
+        "value": "[parameters('securityStorageAccountName')]"
+      }
+    }
+  }
+}

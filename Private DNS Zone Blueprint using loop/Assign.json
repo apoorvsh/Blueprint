@@ -1,0 +1,35 @@
+{
+  "identity": {
+    "type": "SystemAssigned"
+  },
+  "location": "eastus2",
+  "properties": {
+    "blueprintId": "/subscriptions/4ebd8350-9a7a-42f0-bc93-0eea92ca9757/providers/Microsoft.Blueprint/blueprints/pvDns",
+    "resourceGroups": {
+      "privateDnsZone-Rg": {
+        "name": "azinfobloxrg"
+      }
+    },
+    "locks": {
+      "mode": "none"
+    },
+    "parameters": {
+      "privateDnsZoneName": {
+        "value": [
+          "privatelink.database.windows.net",
+          "privatelink.vaultcore.azure.net",
+          "privatelink.blob.core.windows.net",
+          "privatelink.queue.core.windows.net",
+          "privatelink.table.core.windows.net",
+          "privatelink.file.core.windows.net",
+          "privatelink.dfs.core.windows.net",
+          "privatelink.dev.azuresynapse.net",
+          "privatelink.sql.azuresynapse.net",
+          "privatelink.azuresynapse.net",
+          "privatelink.cognitiveservices.azure.com",
+          "privatelink.azuredatabricks.net"
+        ]
+      }
+    }
+  }
+}

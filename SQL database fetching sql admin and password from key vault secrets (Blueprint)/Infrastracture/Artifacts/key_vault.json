@@ -1,0 +1,151 @@
+{
+  "kind": "template",
+  "properties": {
+    "template": {
+      "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "resourceTags": {
+          "type": "object",
+          "defaultValue": {
+            "test": "env"
+          }
+        },
+        "localBU": {
+          "type": "string",
+          "defaultValue": "a",
+          "metadata": {
+            "displayName": "BU for the resource names deployed in this template"
+          }
+        },
+        "enabledForDeployment": {
+          "type": "bool",
+          "defaultValue": true,
+          "allowedValues": [true, false],
+          "metadata": {
+            "description": "Specifies whether Azure Virtual Machines are permitted to retrieve certificates stored as secrets from the key vault."
+          }
+        },
+        "enabledForDiskEncryption": {
+          "type": "bool",
+          "defaultValue": true,
+          "allowedValues": [true, false],
+          "metadata": {
+            "description": "Specifies whether Azure Disk Encryption is permitted to retrieve secrets from the vault and unwrap keys."
+          }
+        },
+        "enabledForTemplateDeployment": {
+          "type": "bool",
+          "defaultValue": true,
+          "allowedValues": [true, false],
+          "metadata": {
+            "description": "Specifies whether Azure Resource Manager is permitted to retrieve secrets from the key vault."
+          }
+        },
+        "networkAccessApproach": {
+          "type": "string",
+          "defaultValue": "Private",
+          "metadata": {
+            "displayName": "Azure Networking Access Approach",
+            "description": "Select your Organizational networking access approach. For public endpoint accessibility, choose 'Public' or 'Both'. For complete private connectivity with private endpoints only select 'Private'."
+          }
+        },
+        "deploymentEnvironment": {
+          "type": "string",
+          "defaultValue": "d",
+          "metadata": {
+            "description": "Deployment environment. Production, QA & Development provide enhanced security and monitoring. Sanbox is meant for POC and short lived exploration only.  See the environment mapping to understand more details."
+          }
+        }
+      },
+      "variables": {
+        "skuName": "[if(equals(parameters('deploymentEnvironment'), 's'),'Standard','Premium')]",
+        "keyVaultName": "apoorv5566key",
+        "tenantId": "[subscription().tenantId]",
+        "networkAccessApproach": {
+          "Private": {
+            "PublicIP": false,
+            "PrivateEndpoint": true,
+            "PublicAccess": "Disabled"
+          },
+          "Both": {
+            "PublicIP": true,
+            "PrivateEndpoint": true,
+            "PublicAccess": "Enabled"
+          },
+          "Public": {
+            "PublicIP": true,
+            "PrivateEndpoint": false,
+            "PublicAccess": "Enabled"
+          }
+        }
+      },
+      "resources": [
+        {
+          "type": "Microsoft.KeyVault/vaults",
+          "name": "[variables('keyVaultName')]",
+          "apiVersion": "2022-07-01",
+          "location": "[resourceGroup().location]",
+          "tags": "[parameters('resourceTags')]",
+          "properties": {
+            "sku": {
+              "name": "[variables('skuName')]",
+              "family": "A"
+            },
+            "enabledForDeployment": "[parameters('enabledForDeployment')]",
+            "enabledForDiskEncryption": "[parameters('enabledForDiskEncryption')]",
+            "enabledForTemplateDeployment": "[parameters('enabledForTemplateDeployment')]",
+            "publicNetworkAccess": "[variables('networkAccessApproach')[parameters('networkAccessApproach')].publicAccess]",
+            "enableSoftDelete": true,
+            "enablePurgeProtection": true,
+            "enableRbacAuthorization": true,
+            "tenantId": "[variables('tenantId')]",
+            "networkAcls": {
+              "defaultAction": "Deny",
+              "bypass": "AzureServices",
+              "virtualNetworkRules": [],
+              "ipRules": []
+            }
+          }
+        },
+        {
+          "type": "Microsoft.KeyVault/vaults/secrets",
+          "apiVersion": "2020-04-01-preview",
+          "name": "[concat(variables('keyVaultName'),'/', 'sqlUserName')]",
+          "properties": {
+            "value": "testuser"
+          },
+          "dependsOn": [
+            "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+          ]
+        },
+        {
+          "type": "Microsoft.KeyVault/vaults/secrets",
+          "apiVersion": "2020-04-01-preview",
+          "name": "[concat(variables('keyVaultName'),'/', 'sqlPassword')]",
+          "properties": {
+            "value": "Password@123"
+          },
+          "dependsOn": [
+            "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+          ]
+        }
+      ],
+      "outputs": {
+        "keyVaultName": {
+          "type": "string",
+          "value": "[variables('keyVaultName')]"
+        },
+        "keyVaultResourceGroupName": {
+          "type": "string",
+          "value": "[resourceGroup().name]"
+        }
+      }
+    },
+    "resourceGroup": "key_vault-rg",
+    "displayName": "creation of azure key vault",
+    "parameters": {}
+  },
+  "type": "Microsoft.Blueprint/blueprints/artifacts",
+  "name": "key_vault"
+}

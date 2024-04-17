@@ -1,0 +1,286 @@
+{
+  "kind": "template",
+  "properties": {
+    "dependsOn": ["subnets", "adls_gen2_silver_storage_account", "key_vault"],
+    "template": {
+      "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "projectCode": {
+          "type": "string",
+          "metadata": {
+            "description": "Project Code"
+          }
+        },
+        "environment": {
+          "type": "string",
+          "metadata": {
+            "description": "Environment of Project"
+          }
+        },
+        "combineTags": {
+          "type": "object",
+          "metadata": {
+            "discription": "Combine Resource Tags for All resources"
+          }
+        },
+        "dataSubnetRef": {
+          "type": "string",
+          "metadata": {
+            "description": "Referencing Data Subnet Id"
+          }
+        },
+        "computeSubnetRef": {
+          "type": "string",
+          "metadata": {
+            "description": "Referencing Compute Subnet Id"
+          }
+        },
+        "silverStorageAccountResourceId": {
+          "type": "string",
+          "metadata": {
+            "description": "Referencing Silver Storage Account ID"
+          }
+        },
+        "adminUsername": {
+          "type": "securestring",
+          "metadata": {
+            "description": "Username for the SQl Server."
+          }
+        },
+        "adminPassword": {
+          "type": "secureString",
+          "metadata": {
+            "description": "Password for the SQl Server."
+          }
+        },
+        "synapseAdminUser": {
+          "type": "string",
+          "metadata": {
+            "description": "User e-mail Id required to make Azure Active Directory admin in Sql Admin"
+          }
+        },
+        "synaspeAdminSID": {
+          "type": "string",
+          "metadata": {
+            "description": "User object Id required to make Azure Active Directory admin in Sql Admin"
+          }
+        }
+      },
+      "variables": {
+        "synapseName": "[toLower(concat('synw',parameters('projectCode'),parameters('environment'),'01a1'))]",
+        "accountUrl": "[toLower(concat('https://dls',parameters('projectCode'),parameters('environment'),'silversa03.dfs.core.windows.net'))]",
+        "defaultDataLakeStorageFilesystemName": "[toLower(concat('synw-',parameters('projectCode'),'-',parameters('environment'),'-raw01'))]",
+        "devPrivateEndpointName": "[toLower(concat('pep-',parameters('projectCode'),'-',parameters('environment'),'-dev01'))]",
+        "sqlOdPrivateEndpointName": "[toLower(concat('pep-',parameters('projectCode'),'-',parameters('environment'),'-sqlod01'))]",
+        "dedicatedSqlPrivateEndpointName": "[toLower(concat('pep-',parameters('projectCode'),'-',parameters('environment'),'-sql01'))]",
+        "devCustomNetworkInterfaceName": "[toLower(concat('nic',parameters('projectCode'),parameters('environment'),'dev01'))]",
+        "sqlOdCustomNetworkInterfaceName": "[toLower(concat('nic',parameters('projectCode'),parameters('environment'),'sqlod01'))]",
+        "dedicatedSqlCustomNetworkInterfaceName": "[toLower(concat('nic',parameters('projectCode'),parameters('environment'),'sql01'))]",
+        "dedicatedSqlPoolName": "[toLower(concat('synw',parameters('projectCode'),parameters('environment'),'dsp01'))]",
+        "managedVirtualNetwork": "default",
+        "managedResourceGroupName": "[concat('managed-rg',variables('synapseName'))]",
+        "preventDataExfiltration": true,
+        "createManagedPrivateEndpoint": true,
+        "publicNetworkAccess": "Disabled",
+        "dedicatedSkuCapacity": 100,
+        "dedicatedSkuName": "DW100c",
+        "dedicatedSkuTier": "DW100c",
+        "synapseDefaultTag": {
+          "Name": "[variables('synapseName')]"
+        },
+        "devPrivateEndpointDefaultTag": {
+          "Name": "[variables('devPrivateEndpointName')]"
+        },
+        "sqlOdPrivateEndpointDefaultTag": {
+          "Name": "[variables('sqlOdPrivateEndpointName')]"
+        },
+        "dedicatedSqlPoolDefaultTag": {
+          "Name": "[variables('dedicatedSqlPoolName')]"
+        },
+        "dedicatedSqlPrivateEndpointDefaultTag": {
+          "Name": "[variables('dedicatedSqlPrivateEndpointName')]"
+        }
+      },
+      "resources": [
+        {
+          "type": "Microsoft.Synapse/workspaces",
+          "apiVersion": "2021-06-01",
+          "name": "[variables('synapseName')]",
+          "tags": "[union(variables('synapseDefaultTag'),parameters('combineTags'))]",
+          "location": "[resourceGroup().location]",
+          "identity": {
+            "type": "SystemAssigned"
+          },
+          "properties": {
+            "managedVirtualNetwork": "[variables('managedVirtualNetwork')]",
+            "managedResourceGroupName": "[variables('managedResourceGroupName')]",
+            "publicNetworkAccess": "[variables('publicNetworkAccess')]",
+            "sqlAdministratorLogin": "[parameters('adminUsername')]",
+            "sqlAdministratorLoginPassword": "[parameters('adminPassword')]",
+            "managedVirtualNetworkSettings": {
+              "preventDataExfiltration": "[variables('preventDataExfiltration')]",
+              "allowedAadTenantIdsForLinking": []
+            },
+            "defaultDataLakeStorage": {
+              "accountUrl": "[variables('accountUrl')]",
+              "filesystem": "[variables('defaultDataLakeStorageFilesystemName')]",
+              "createManagedPrivateEndpoint": "[variables('createManagedPrivateEndpoint')]",
+              "resourceId": "[parameters('silverStorageAccountResourceId')]"
+            }
+          }
+        },
+        {
+          "type": "Microsoft.Synapse/workspaces/administrators",
+          "apiVersion": "2019-06-01-preview",
+          "name": "[concat(variables('synapseName'),'/','activeDirectory')]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Synapse/workspaces', variables('synapseName'))]"
+          ],
+          "properties": {
+            "administratorType": "Synapse SQL Administrator",
+            "login": "[parameters('synapseAdminUser')]",
+            "sid": "[parameters('synaspeAdminSID')]",
+            "tenantId": "[subscription().tenantId]"
+          }
+        },
+        {
+          "type": "Microsoft.Network/privateEndpoints",
+          "apiVersion": "2021-05-01",
+          "name": "[variables('devPrivateEndpointName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('devPrivateEndpointDefaultTag'), parameters('combineTags'))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Synapse/workspaces',variables('synapseName'))]"
+          ],
+          "properties": {
+            "subnet": {
+              "id": "[parameters('computeSubnetRef')]"
+            },
+            "privateLinkServiceConnections": [
+              {
+                "name": "[variables('devPrivateEndpointName')]",
+                "properties": {
+                  "privateLinkServiceId": "[resourceId('Microsoft.Synapse/workspaces',variables('synapseName'))]",
+                  "groupIds": ["dev"]
+                }
+              }
+            ],
+            "customNetworkInterfaceName": "[variables('devCustomNetworkInterfaceName')]"
+          }
+        },
+        {
+          "type": "Microsoft.Network/privateEndpoints",
+          "apiVersion": "2021-05-01",
+          "name": "[variables('sqlOdPrivateEndpointName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('sqlOdPrivateEndpointDefaultTag'), parameters('combineTags'))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Synapse/workspaces',variables('synapseName'))]",
+            "[resourceId('Microsoft.Network/privateEndpoints',variables('devPrivateEndpointName'))]"
+          ],
+          "properties": {
+            "subnet": {
+              "id": "[parameters('dataSubnetRef')]"
+            },
+            "privateLinkServiceConnections": [
+              {
+                "name": "[variables('sqlOdPrivateEndpointName')]",
+                "properties": {
+                  "privateLinkServiceId": "[resourceId('Microsoft.Synapse/workspaces',variables('synapseName'))]",
+                  "groupIds": ["SqlOnDemand"]
+                }
+              }
+            ],
+            "customNetworkInterfaceName": "[variables('sqlOdCustomNetworkInterfaceName')]"
+          }
+        },
+        {
+          "type": "Microsoft.Synapse/workspaces/sqlPools",
+          "apiVersion": "2019-06-01-preview",
+          "name": "[concat(variables('synapseName'),'/',variables('dedicatedSqlPoolName'))]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('dedicatedSqlPoolDefaultTag'), parameters('combineTags'))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Synapse/workspaces',variables('synapseName'))]"
+          ],
+          "sku": {
+            "capacity": "[variables('dedicatedSkuCapacity')]",
+            "name": "[variables('dedicatedSkuName')]",
+            "tier": "[variables('dedicatedSkuTier')]"
+          },
+          "properties": {}
+        },
+        {
+          "type": "Microsoft.Network/privateEndpoints",
+          "apiVersion": "2021-05-01",
+          "name": "[variables('dedicatedSqlPrivateEndpointName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('dedicatedSqlPrivateEndpointDefaultTag'), parameters('combineTags'))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Synapse/workspaces',variables('synapseName'))]",
+            "[resourceId('Microsoft.Network/privateEndpoints',variables('devPrivateEndpointName'))]",
+            "[resourceId('Microsoft.Network/privateEndpoints',variables('sqlOdPrivateEndpointName'))]"
+          ],
+          "properties": {
+            "subnet": {
+              "id": "[parameters('dataSubnetRef')]"
+            },
+            "privateLinkServiceConnections": [
+              {
+                "name": "[variables('dedicatedSqlPrivateEndpointName')]",
+                "properties": {
+                  "privateLinkServiceId": "[resourceId('Microsoft.Synapse/workspaces',variables('synapseName'))]",
+                  "groupIds": ["Sql"]
+                }
+              }
+            ],
+            "customNetworkInterfaceName": "[variables('dedicatedSqlCustomNetworkInterfaceName')]"
+          }
+        }
+      ],
+      "outputs": {
+        "syanapseObjectID": {
+          "type": "string",
+          "value": "[reference(concat('Microsoft.Synapse/workspaces/', variables('synapseName')), '2021-06-01', 'Full').identity.principalId]"
+        }
+      }
+    },
+    "resourceGroup": "dataPlatform_Rg",
+    "displayName": "creation of Azure Synapse with dedicated Sql Pool with its Private Endpoints",
+    "parameters": {
+      "projectCode": {
+        "value": "[parameters('projectCode_assign')]"
+      },
+      "environment": {
+        "value": "[parameters('environment_assign')]"
+      },
+      "combineTags": {
+        "value": "[parameters('combineTags_assign')]"
+      },
+      "dataSubnetRef": {
+        "value": "[artifacts('subnets').outputs.dataSubnetId]"
+      },
+      "computeSubnetRef": {
+        "value": "[artifacts('subnets').outputs.computeSubnetId]"
+      },
+      "adminUsername": {
+        "value": "[parameters('adminUsername_assign')]"
+      },
+      "adminPassword": {
+        "value": "[parameters('adminPassword_assign')]"
+      },
+      "synapseAdminUser": {
+        "value": "[parameters('synapseAdminUser_assign')]"
+      },
+      "synaspeAdminSID": {
+        "value": "[parameters('synaspeAdminSID_assign')]"
+      },
+      "silverStorageAccountResourceId": {
+        "value": "[artifacts('adls_gen2_silver_storage_account').outputs.storageAccountId]"
+      }
+    }
+  },
+  "type": "Microsoft.Blueprint/blueprints/artifacts",
+  "name": "synapse"
+}

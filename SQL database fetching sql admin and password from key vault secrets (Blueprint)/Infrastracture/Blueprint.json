@@ -1,0 +1,22 @@
+{
+  "properties": {
+    "description": "This is a default template, please modify it.",
+    "targetScope": "subscription",
+    "parameters": {
+      "adminUsername": {
+        "type": "securestring"
+      },
+      "adminPassword": {
+        "type": "securestring"
+      }
+    },
+    "resourceGroups": {
+      "key_vault-rg": {
+        "name": "apoorv-keyvault-rg",
+        "location": "eastus",
+        "description": "This is a default RG, please create yours"
+      }
+    }
+  },
+  "type": "Microsoft.Blueprint/blueprints"
+}

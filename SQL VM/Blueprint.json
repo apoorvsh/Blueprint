@@ -1,0 +1,179 @@
+{
+  "properties": {
+    "type": "Microsoft.Blueprint/blueprints",
+    "displayName": "Security First - Azure Synapse Analytics Environment",
+    "description": "Configures a Azure analytics environment with best practice security configurations",
+    "targetScope": "subscription",
+    "parameters": {
+      "updateSQLVMConfiguration": {
+        "type": "bool",
+        "metadata": {
+          "displayName": "Required: Conditional Deployment for SQL VM",
+          "description": "Required - Select TRUE to deploy and update the SQL VM configuration, Select FALSE to bypass any updates"
+        },
+        "allowedValues": [true, false]
+      },
+      "azureVM_adminPassword": {
+        "type": "secureString",
+        "metadata": {
+          "displayName": "Required: VM Admin Password for all VM's deployed",
+          "description": "Local password for VM admin access"
+        },
+        "allowedValues": []
+      },
+      "azureVM_adminUser": {
+        "type": "secureString",
+        "metadata": {
+          "displayName": "Required: VM Admin User for all VM's deployed",
+          "description": "Local username for VM admin access"
+        },
+        "allowedValues": []
+      },
+      "backupStorageAccountName": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Optional: SQL Backup Storage Account",
+          "description": "Required if you're using storage for SQL backups - Otherwise default to N/A"
+        },
+        "defaultValue": "n/a"
+      },
+      "centralizedLogAnalytics_workspaceId": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Optional: Centralized Log Analytics Workspace Id for auditing and diagnostics",
+          "description": "Specifies the Log Analytics Workspace Resource ID that should be used for auditing and diagnostics if you have selected a Centralized or Functional monitoring approach."
+        },
+        "defaultValue": "N/A",
+        "allowedValues": []
+      },
+      "decentralizedLogAnalytics_workspaceId": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Optional: Decentralized Log Analytics Workspace Id for auditing and diagnostics",
+          "description": "Specifies the Log Analytics Workspace Resource ID that should be used for auditing and diagnostics if you have selected a Centralized or Functional monitoring approach."
+        },
+        "defaultValue": "N/A",
+        "allowedValues": []
+      },
+      "deploymentEnvironment": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Deployment Environment for Resources",
+          "description": "Select your deployment environment. Production, QA & Development provide enhanced security and monitoring. Sanbox is meant for POC and short lived exploration only.  See the environment mapping to understand more details."
+        },
+        "defaultValue": "p",
+        "allowedValues": ["p", "d", "n", "s", "dr"]
+      },
+      "ExistingVNetDataSNName": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Existing virtual network data subnet name",
+          "description": "If you are leveraging an existing Virtual Network provide the subnet name here"
+        },
+        "defaultValue": "hrcedlh-data-sn"
+      },
+      "ExistingVNetName": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Existing virtual network name",
+          "description": "If you are leveraging an existing Virtual Network provide the name here"
+        },
+        "defaultValue": "VNET-edw-shared-dev"
+      },
+      "ExistingVNetRGName": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Existing virtual network resource group name",
+          "description": "If you are leveraging an existing Virtual Network provide the Resource Group name here"
+        },
+        "defaultValue": "rg-edw-shared-dev"
+      },
+      "monitoringApproach": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Logging and Monitoring Approach",
+          "description": "Select your Organizational monitoring approach. For more info: https://docs.microsoft.com/en-us/azure/azure-monitor/platform/design-logs-deployment#important-considerations-for-an-access-control-strategy"
+        },
+        "defaultValue": "Decentralized",
+        "allowedValues": [
+          "Centralized",
+          "Decentralized",
+          "Functional",
+          "External"
+        ]
+      },
+      "monitorLogRetention": {
+        "type": "int",
+        "metadata": {
+          "displayName": "Required: Metrics & Log Retention (days)",
+          "description": "The retention is days for auditing, diagnostic and metric logs per your organizations requirements. Default = 180 days"
+        },
+        "defaultValue": 180,
+        "allowedValues": []
+      },
+      "resourceLocation": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: All Resource Location",
+          "description": "Location for all resources."
+        },
+        "defaultValue": "eastus",
+        "allowedValues": [
+          "centralus",
+          "eastus",
+          "eastus2",
+          "northcentralus",
+          "southcentralus",
+          "westcentralus",
+          "westus",
+          "westus2"
+        ]
+      },
+      "resourceNamePrefix": {
+        "type": "string",
+        "metadata": {
+          "displayName": "Required: Resource Name Prefix",
+          "description": "Resource group and resource name prefix. Lower case characters only and less than or equal to 8 characters"
+        },
+        "defaultValue": "ans",
+        "allowedValues": ["ans", "tio", "ino", "res", "ato", "eut", "Syn"]
+      },
+      "resourceTags": {
+        "type": "object",
+        "metadata": {
+          "displayName": "Required: Resource Tags for all resources"
+        },
+        "defaultValue": {
+          "BU": "Information Technology",
+          "CostCenter": "000000-Default",
+          "Environment": "Development",
+          "Department": "Information Technology",
+          "Application": "Information Technology"
+        }
+      },
+      "sqlDataDisksCount": {
+        "type": "int",
+        "metadata": {
+          "displayName": "Required: Number of SQL Datadisks. 2048 gib is the default size per data disk."
+        },
+        "defaultValue": 6
+      },
+      "sqlLogDisksCount": {
+        "type": "int",
+        "metadata": {
+          "displayName": "Required: Number of SQL log disks. 2048 gib is the default size per data disk."
+        },
+        "defaultValue": 2
+      }
+    },
+    "resourceGroups": {
+      "DataPlatformServicesRG": {
+        "location": "[parameters('resourceLocation')]",
+        "metadata": {
+          "displayName": "Data Platform Resource Group"
+        },
+        "dependsOn": []
+      }
+    }
+  }
+}

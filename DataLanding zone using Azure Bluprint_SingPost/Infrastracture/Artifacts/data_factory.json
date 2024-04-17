@@ -1,0 +1,108 @@
+{
+  "kind": "template",
+  "properties": {
+    "dependsOn": ["subnets", "key_vault"],
+    "template": {
+      "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "projectCode": {
+          "type": "string",
+          "metadata": {
+            "description": "Project Code"
+          }
+        },
+        "environment": {
+          "type": "string",
+          "metadata": {
+            "description": "Environment of Project"
+          }
+        },
+        "combineTags": {
+          "type": "object",
+          "metadata": {
+            "discription": "Combine Resource Tags for All resources"
+          }
+        },
+        "dataSubnetRef": {
+          "type": "string",
+          "metadata": {
+            "description": "Referencing Data Subnet Id"
+          }
+        }
+      },
+      "variables": {
+        "dataFactoryName": "[toLower(concat('df-',parameters('projectCode'),'-',parameters('environment'),'-dp01a3'))]",
+        "adfPrivateEndpointName": "[toLower(concat('pep-',parameters('projectCode'),'-',parameters('environment'),'-datafactory01'))]",
+        "customNetworkInterfaceName": "[toLower(concat('nic',parameters('projectCode'),parameters('environment'),'datafactory01'))]",
+        "publicNetworkAccess": "Disabled",
+        "adfPrivateEndpointDefaultTag": {
+          "Name": "[variables('adfPrivateEndpointName')]"
+        }
+      },
+      "resources": [
+        {
+          "type": "Microsoft.DataFactory/factories",
+          "apiVersion": "2018-06-01",
+          "name": "[variables('dataFactoryName')]",
+          "location": "[resourceGroup().location]",
+          "identity": {
+            "type": "SystemAssigned"
+          },
+          "properties": {
+            "publicNetworkAccess": "[variables('publicNetworkAccess')]"
+          }
+        },
+        {
+          "type": "Microsoft.Network/privateEndpoints",
+          "apiVersion": "2021-05-01",
+          "name": "[variables('adfPrivateEndpointName')]",
+          "location": "[resourceGroup().location]",
+          "tags": "[union(variables('adfPrivateEndpointDefaultTag'), parameters('combineTags'))]",
+          "dependsOn": [
+            "[resourceId('Microsoft.DataFactory/factories', variables('dataFactoryName'))]"
+          ],
+          "properties": {
+            "subnet": {
+              "id": "[parameters('dataSubnetRef')]"
+            },
+            "privateLinkServiceConnections": [
+              {
+                "name": "[variables('adfPrivateEndpointName')]",
+                "properties": {
+                  "privateLinkServiceId": "[resourceId('Microsoft.DataFactory/factories', variables('dataFactoryName'))]",
+                  "groupIds": ["datafactory"]
+                }
+              }
+            ],
+            "customNetworkInterfaceName": "[variables('customNetworkInterfaceName')]"
+          }
+        }
+      ],
+      "outputs": {
+        "adfObjectID": {
+          "type": "string",
+          "value": "[reference(concat('Microsoft.DataFactory/factories/', variables('dataFactoryName')), '2018-06-01', 'Full').identity.principalId]"
+        }
+      }
+    },
+    "resourceGroup": "dataPlatform_Rg",
+    "displayName": "creation of Azure DataFactory with its Private Endpoints",
+    "parameters": {
+      "projectCode": {
+        "value": "[parameters('projectCode_assign')]"
+      },
+      "environment": {
+        "value": "[parameters('environment_assign')]"
+      },
+      "combineTags": {
+        "value": "[parameters('combineTags_assign')]"
+      },
+      "dataSubnetRef": {
+        "value": "[artifacts('subnets').outputs.dataSubnetId]"
+      }
+    }
+  },
+  "type": "Microsoft.Blueprint/blueprints/artifacts",
+  "name": "data_factory"
+}
